@@ -1,0 +1,22 @@
+# .gitignore
+
+# python generated files
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# data
+data/
+*.csv
+*.dat
+
+# models
+*.pth
+
+# environment variables
+.env
+
+# IDE settings
+.vscode/
+.idea/
