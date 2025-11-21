@@ -1,0 +1,8 @@
+nuclei:
+  z_min: 62
+  z_max: 62
+  z_step: 2
+  n_min: 80
+  n_max: 100
+  n_step: 2
+  magic_numbers: [2, 8, 20, 28, 50, 82, 126]

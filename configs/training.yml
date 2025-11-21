@@ -1,0 +1,48 @@
+# ==============================
+# 1. 通常学習用 (デフォルト設定)
+#    Optunaを使わず、手動で一回だけ学習を行う場合
+# ==============================
+
+default:
+  nn:
+    input_dim: 2            # [N, n_nu]
+    hidden_sizes: [64, 64]  # デフォルトは64ノードの2層
+    activation: "ReLU"      # ReLU, Tanh, SiLU etc.
+  
+  training:
+    batch_size: 64
+    epochs: 300
+    lr:
+      initial: 0.001
+      scheduler: "StepLR"
+      patience: 50
+      factor: 0.5
+    optimizer: "Adam"
+    loss_function: "MSE"
+    val_split: 0.1
+    early_stopping:
+      enabled: true
+      patience: 20
+
+# ==============================
+# 2. Optuna探索用 (探索空間の定義)
+#    Optuna実行時はこちらの範囲から値が選ばれます
+# ==============================
+optuna:
+  study_name: "ibm2_study"
+  n_trials: 50
+  storage: "sqlite:///ibm2_optuna.db"
+  direction: "minimize"
+
+  search_space:
+    hidden_layers_min: 1
+    hidden_layers_max: 4
+
+    node_candidates: [16, 32, 64, 128]
+
+    activation_list: ["ReLU", "Tanh", "SiLU"]
+
+    batch_size_list: [16, 32, 64, 128]
+
+    lr_initial_min: 1e-5
+    lr_initial_max: 1e-2
