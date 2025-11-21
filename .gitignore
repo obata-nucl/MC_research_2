@@ -7,8 +7,8 @@ __pycache__/
 venv/
 
 # data
-data/
-outputs/
+data/*
+outputs/*
 *.csv
 *.dat
 
@@ -21,3 +21,6 @@ outputs/
 # IDE settings
 .vscode/
 .idea/
+
+
+!**/.gitkeep
