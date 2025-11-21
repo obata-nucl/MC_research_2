@@ -8,6 +8,7 @@ venv/
 
 # data
 data/
+outputs/
 *.csv
 *.dat
 
