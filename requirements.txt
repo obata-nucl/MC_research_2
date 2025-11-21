@@ -1,0 +1,6 @@
+numpy==2.1.1
+scipy==1.14.1
+pandas==2.3.0
+matplotlib==3.10.0
+torch>=2.3.0
+pyyaml==6.0.1
