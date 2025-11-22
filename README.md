@@ -17,11 +17,11 @@ project2/
 │     ├ dataset.py
 │     ├ evaluate.py
 │     ├ model.py
-│     ├ train.py
+│     ├ utils.py
 │     └ visualize.py
 ├── scripts/
-│     ├ main.py
 │     ├ analyze.py
+│     ├ train.py
 │     └ plot.py
 ├── requirements.txt    # Python依存ライブラリ
 ```
