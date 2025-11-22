@@ -33,22 +33,16 @@ def load_config(config_dir: str = "./configs", nuclei_file: str = "nuclei", trai
     # パスの解決と結合
     dirs = config.get("dirs", {})
 
-    # 起点となるディレクトリ
-    data_root = Path(dirs.get("data_dir", "./data"))
-    output_root = Path(dirs.get("output_dir", "./output"))
-    scripts_root = Path(dirs.get("scripts_dir", "./scripts"))
-    src_root = Path(dirs.get("src_dir", "./src"))
-    
-    # サブディレクトリの結合
-    raw_dir = data_root / dirs.get("raw_dir", "raw")
-    processed_dir = data_root / dirs.get("processed_dir", "processed")
+    # 全てのディレクトリ設定を Path オブジェクトに変換
+    for key, val in dirs.items():
+        dirs[key] = Path(val)
 
-    config["dirs"]["data_dir"] = data_root
-    config["dirs"]["raw_dir"] = raw_dir
-    config["dirs"]["processed_dir"] = processed_dir
-    config["dirs"]["output_dir"] = output_root
-    config["dirs"]["scripts_dir"] = scripts_root
-    config["dirs"]["src_dir"] = src_root
+    # data_dir に依存するサブディレクトリの解決
+    if "data_dir" in dirs:
+        dirs["raw_dir"] = dirs["data_dir"] / dirs["raw_dir"]
+        dirs["processed_dir"] = dirs["data_dir"] / dirs["processed_dir"]
+
+    config["dirs"] = dirs
 
     return config
 
