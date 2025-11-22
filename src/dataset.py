@@ -77,7 +77,7 @@ class IBM2Dataset(Dataset):
                 raise FileNotFoundError(f"file not found : {file_path}")
             
             try:
-                df = pd.read_csv(file_path, header=None, names=["Beta", "Energy"])
+                df = pd.read_csv(file_path, header=0, names=["Beta", "Energy"])
                 df = df.sort_values(by="Beta")
                 raw_beta = df["Beta"].values
                 raw_energy = df["Energy"].values
