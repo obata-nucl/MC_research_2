@@ -6,3 +6,4 @@ nuclei:
   n_max: 100
   n_step: 2
   magic_numbers: [2, 8, 20, 28, 50, 82, 126]
+  fixed_chi_pi: -0.5
