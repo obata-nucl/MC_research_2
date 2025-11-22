@@ -1,8 +1,12 @@
 z_min: 62
 z_max: 62
 z_step: 2
-n_min: 80
-n_max: 100
+n_min: 86
+n_max: 96
 n_step: 2
 magic_numbers: [2, 8, 20, 28, 50, 82, 126]
 fixed_chi_pi: -0.5
+
+beta_min: -0.45
+beta_max: 0.60
+beta_step: 0.05
