@@ -23,7 +23,7 @@ def load_config(config_dir: str = "./configs", nuclei_file: str = "nuclei", trai
 
     nuclei_path = config_dir / f"{nuclei_file}.yml"
     nuclei_config = _load_yaml(nuclei_path)
-    config.update(nuclei_config)
+    config["nuclei"] = nuclei_config
 
     training_path = config_dir / f"{training_file}.yml"
     training_config = _load_yaml(training_path)
