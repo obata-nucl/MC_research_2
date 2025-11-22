@@ -15,13 +15,13 @@ project2/
 ├── outputs/            # 学習結果, 評価結果など
 ├── src/                # ソースコード
 │     ├ dataset.py
-│     ├ evaluate.py
 │     ├ model.py
-│     ├ train.py
+│     ├ utils.py
 │     └ visualize.py
 ├── scripts/
-│     ├ main.py
 │     ├ analyze.py
+│     ├ eval.py
+│     ├ train.py
 │     └ plot.py
 ├── requirements.txt    # Python依存ライブラリ
 ```

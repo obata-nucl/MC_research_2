@@ -31,7 +31,7 @@ default:
 optuna:
   study_name: "ibm2_study"
   n_trials: 50
-  storage: "sqlite:///ibm2_optuna.db"
+  db_name: "ibm2_optuna.db"
   direction: "minimize"
 
   search_space:

@@ -32,16 +32,16 @@ class IBM2Dataset(Dataset):
         self.beta_max = self.nuclei_conf["beta_max"]
         self.beta_step = self.nuclei_conf["beta_step"]
 
-        self.beta_values = np.arange(
+        self.beta_grid = np.arange(
             self.beta_min, 
             self.beta_max + 0.5 * self.beta_step,
             self.beta_step
         )
 
-        self.beta_zero_idx = np.argmin(np.abs(self.beta_values))
+        self.beta_zero_idx = np.argmin(np.abs(self.beta_grid))
         
         print(f"Target Grid: {self.beta_min} ~ {self.beta_max} (Step: {self.beta_step})")
-        print(f" -> Shape: {self.beta_values.shape}")
+        print(f" -> Shape: {self.beta_grid.shape}")
 
         # 3. 学習範囲の設定
         self.z_range = range(
@@ -77,16 +77,16 @@ class IBM2Dataset(Dataset):
                 raise FileNotFoundError(f"file not found : {file_path}")
             
             try:
-                df = pd.read_csv(file_path, header=None, names=["Beta", "Energy"])
+                df = pd.read_csv(file_path, header=0, names=["Beta", "Energy"])
                 df = df.sort_values(by="Beta")
                 raw_beta = df["Beta"].values
                 raw_energy = df["Energy"].values
 
-                diff_matrix = np.abs(raw_beta[:, None] - self.beta_values[None, :])
+                diff_matrix = np.abs(raw_beta[:, None] - self.beta_grid[None, :])
                 min_diff_idx = np.argmin(diff_matrix, axis=0)
                 min_diffs = np.min(diff_matrix, axis=0)
                 if not np.all(min_diffs < 1e-4):
-                    failed_betas = self.beta_values[min_diffs >= 1e-4]
+                    failed_betas = self.beta_grid[min_diffs >= 1e-4]
                     raise ValueError(f"Failed to find close beta values for: {failed_betas}")
                 target_energy = raw_energy[min_diff_idx]
 

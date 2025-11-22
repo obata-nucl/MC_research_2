@@ -5,6 +5,6 @@ dirs:
   data_dir: "./data"
   raw_dir: "raw"
   processed_dir: "processed"
-  output_dir: "./output"
+  output_dir: "./outputs"
   scripts_dir: "./scripts"
   src_dir: "./src"
