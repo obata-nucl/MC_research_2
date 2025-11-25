@@ -8,7 +8,7 @@ class IBM2Visualizer:
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
         
-        plt.rcParams['font.family'] = 'serif'
+        plt.rcParams['font.family'] = "serif"
         plt.rcParams['figure.dpi'] = 300
         plt.rcParams['font.size'] = 12
 
