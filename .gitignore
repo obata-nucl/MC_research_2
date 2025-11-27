@@ -22,5 +22,8 @@ outputs/*
 .vscode/
 .idea/
 
+# IBM specific files
+NPBOS/
+
 
 !**/.gitkeep
