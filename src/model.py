@@ -88,14 +88,14 @@ class IBM2FlexibleNet(nn.Module):
         # h = torch.cat([h_nu, h_pi], dim=-1)
 
         chi_nu = self.head_chi_nu(h)                # [batch_size, 1]
-        chi_nu = - self.softplus(chi_nu)
+        chi_nu = - 1.3 * torch.sigmoid(chi_nu)  # -1.3 ~ 0.0 に制限
         chi_pi = self.fixed_chi_pi.expand_as(chi_nu)
         interaction = self.head_interaction(h)      # [batch_size, 3]
         epsilon = interaction[:, 0:1]               # [batch_size, 1]
         kappa   = interaction[:, 1:2]               # [batch_size, 1]
         C_beta  = interaction[:, 2:3]               # [batch_size, 1]
 
-        epsilon = self.softplus(epsilon)
+        epsilon = 1.5 * torch.sigmoid(epsilon)  # 0.0 ~ 1.5 に制限
         kappa   = - self.softplus(kappa)
         C_beta  = self.softplus(C_beta)
 
