@@ -1,8 +1,10 @@
 import os
 import argparse
+import yaml  # ★追加: 構成保存用
+import pandas as pd
 
 # ============================================================
-# 並列化設定
+# 並列化設定 (必ずimport torchより前に書く)
 # ============================================================
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
@@ -71,7 +73,6 @@ def get_manual_split(dataset, val_n_list):
     train_indices = []
     val_indices = []
     
-    # dataset.data はリスト形式の辞書
     for idx, item in enumerate(dataset.data):
         n_val = item["N"]
         if n_val in val_n_list:
@@ -79,11 +80,9 @@ def get_manual_split(dataset, val_n_list):
         else:
             train_indices.append(idx)
             
-    # 安全確認
     if len(train_indices) == 0:
         raise ValueError(f"Train set is empty! val_n_list={val_n_list} covers all data.")
     
-    # Subsetを使って分割
     return Subset(dataset, train_indices), Subset(dataset, val_indices)
 
 # =============================================================================
@@ -99,14 +98,9 @@ def run_normal_training(cfg):
     
     # Dataset準備
     full_dataset = IBM2Dataset(cfg)
-
-    # training.yml から "validation_n" (リスト) を取得
-    # 設定がなければデフォルトとして [88, 94] などを検証用にする
     val_n_list = train_conf.get("validation_n", [88, 94])
-    
     train_set, val_set = get_manual_split(full_dataset, val_n_list)
     
-    # データローダー (Valはシャッフル不要)
     train_loader = DataLoader(train_set, batch_size=train_conf["batch_size"], shuffle=True)
     val_loader = DataLoader(val_set, batch_size=train_conf["batch_size"], shuffle=False)
     
@@ -115,46 +109,56 @@ def run_normal_training(cfg):
 
     # モデル構築
     model_config = nn_conf.copy()
-    model_config["fixed_chi_pi"] = cfg["nuclei"]["fixed_chi_pi"]
+    if "nuclei" in cfg["nuclei"]:
+        fixed_chi_pi = cfg["nuclei"]["nuclei"]["fixed_chi_pi"]
+    else:
+        fixed_chi_pi = cfg["nuclei"]["fixed_chi_pi"]
+    model_config["fixed_chi_pi"] = fixed_chi_pi
     
     model = IBM2FlexibleNet(model_config).to(device)
-    
-    # Decoder
-    beta_grid = full_dataset.beta_grid
-    decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
+    decoder = IBM2PESDecoder(beta_f_grid=full_dataset.beta_grid).to(device)
     
     # Optimizer & Loss
-    lr_conf = train_conf["lr"]
-    optimizer = optim.Adam(model.parameters(), lr=lr_conf["initial"])
+    optimizer = optim.Adam(model.parameters(), lr=train_conf["lr"]["initial"])
     criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.5)
     
     scheduler = None
-    if lr_conf.get("scheduler") == "StepLR":
+    if train_conf["lr"].get("scheduler") == "StepLR":
         scheduler = optim.lr_scheduler.StepLR(
             optimizer, 
-            step_size=lr_conf["patience"], 
-            gamma=lr_conf["factor"]
+            step_size=train_conf["lr"]["patience"], 
+            gamma=train_conf["lr"]["factor"]
         )
 
     # 学習ループ
     epochs = train_conf["epochs"]
     best_loss = float('inf')
     output_dir = cfg["dirs"]["output_dir"] / "models"
+    output_dir.mkdir(parents=True, exist_ok=True)
     
     early_stop_conf = train_conf.get("early_stopping", {})
     es_enabled = early_stop_conf.get("enabled", False)
     es_patience = early_stop_conf.get("patience", 20)
     es_counter = 0
     
+    history = [] # 履歴保存用
+    
     print(f"Training on {device} for {epochs} epochs...")
     
     for epoch in range(1, epochs + 1):
         train_loss = train_one_epoch(model, decoder, train_loader, optimizer, criterion, device)
-        # Valデータが無い場合(空リスト)のエラー回避
         if len(val_set) > 0:
             val_loss = evaluate(model, decoder, val_loader, criterion, device)
         else:
             val_loss = 0.0
+        
+        # 履歴記録
+        history.append({
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "val_loss": val_loss,
+            "lr": optimizer.param_groups[0]["lr"]
+        })
         
         if scheduler:
             scheduler.step()
@@ -166,7 +170,6 @@ def run_normal_training(cfg):
             best_loss = val_loss
             es_counter = 0
             save_path = output_dir / "best_model.pth"
-            save_path.parent.mkdir(parents=True, exist_ok=True)
             torch.save(model.state_dict(), save_path)
         else:
             es_counter += 1
@@ -175,6 +178,12 @@ def run_normal_training(cfg):
                 break
 
     print(f"Finished. Best Val Loss: {best_loss:.6f}")
+    
+    # 履歴CSV保存
+    history_df = pd.DataFrame(history)
+    history_path = cfg["dirs"]["output_dir"] / "models" / "training_history.csv"
+    history_df.to_csv(history_path, index=False)
+    print(f"History saved to: {history_path}")
 
 # =============================================================================
 # 2. Optuna探索モード
@@ -187,16 +196,25 @@ def run_optuna_optimization(cfg):
     
     output_dir = cfg["dirs"]["output_dir"]
     model_save_dir = output_dir / "models"
-    storage_url = f"sqlite:///{output_dir / opt_conf['db_name']}"
+    model_save_dir.mkdir(parents=True, exist_ok=True)
+    
+    # DBファイルのパス
+    db_name = opt_conf.get("db_name", "ibm2_optuna.db")
+    storage_url = f"sqlite:///{output_dir / db_name}"
 
     search_space = opt_conf["search_space"]
     device = torch.device(cfg.get("device", "cpu"))
     
     full_dataset = IBM2Dataset(cfg)
     beta_grid = full_dataset.beta_grid
-    fixed_chi_pi = cfg["nuclei"]["fixed_chi_pi"]
+    
+    if "nuclei" in cfg["nuclei"]:
+        fixed_chi_pi = cfg["nuclei"]["nuclei"]["fixed_chi_pi"]
+    else:
+        fixed_chi_pi = cfg["nuclei"]["fixed_chi_pi"]
     
     def objective(trial):
+        # パラメータ探索
         n_layers = trial.suggest_int("n_layers", 
                                      search_space["hidden_layers_min"], 
                                      search_space["hidden_layers_max"])
@@ -206,17 +224,19 @@ def run_optuna_optimization(cfg):
             hidden_sizes.append(size)
             
         act_name = trial.suggest_categorical("activation", search_space["activation_list"])
+        
+        # floatキャストを忘れない
         lr_init = trial.suggest_float("lr", float(search_space["lr_initial_min"]), float(search_space["lr_initial_max"]), log=True)
         batch_size = trial.suggest_categorical("batch_size", search_space["batch_size_list"])
         
-        # --- ★修正: 探索時も固定Validation ---
-        # 探索時こそ、汎化性能(内挿能力)を正しく評価するために固定セットを使うべき
+        # データ分割 (固定)
         val_n_list = cfg["default"]["training"].get("validation_n", [88, 94])
         train_set, val_set = get_manual_split(full_dataset, val_n_list)
         
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
         
+        # モデル構築
         model_config = {
             "input_dim": 2,
             "hidden_sizes": hidden_sizes,
@@ -239,20 +259,12 @@ def run_optuna_optimization(cfg):
             if trial.should_prune():
                 raise optuna.TrialPruned()
         
-        try:
-            best_so_far = study.best_value
-        except ValueError:
-            best_so_far = float('inf')
-
-        if val_loss < best_so_far:
-            save_path = model_save_dir / "optuna_best_model.pth"
-            torch.save(model.state_dict(), save_path)
-                
         return val_loss
 
+    # 並列実行設定
     total_cores = os.cpu_count() or 1
     n_jobs = max(1, total_cores // 2)
-    print(f"Running Optuna with {n_jobs} jobs")
+    print(f"Running Optuna with {n_jobs} jobs (Storage: {storage_url})")
 
     study = optuna.create_study(
         study_name=opt_conf["study_name"],
@@ -266,6 +278,106 @@ def run_optuna_optimization(cfg):
     print("Best trial:")
     print(f"  Value: {study.best_trial.value}")
     print(f"  Params: {study.best_trial.params}")
+
+    # ==========================================
+    # ベストパラメータでの再学習 & 保存
+    # ==========================================
+    print("\nRetraining with best parameters...")
+    best_params = study.best_trial.params
+    
+    # パラメータ復元
+    n_layers = best_params["n_layers"]
+    hidden_sizes = [best_params[f"l{i}_size"] for i in range(n_layers)]
+    act_name = best_params["activation"]
+    lr_init = best_params["lr"]
+    batch_size = best_params["batch_size"]
+    
+    # モデル設定の保存用辞書
+    model_config = {
+        "input_dim": 2,
+        "hidden_sizes": hidden_sizes,
+        "activation": act_name,
+        "fixed_chi_pi": fixed_chi_pi
+    }
+    
+    # データローダー
+    val_n_list = cfg["default"]["training"].get("validation_n", [88, 94])
+    train_set, val_set = get_manual_split(full_dataset, val_n_list)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+    
+    # モデル・Optimizer
+    model = IBM2FlexibleNet(model_config).to(device)
+    decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=lr_init)
+    criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.5)
+    
+    # Scheduler (通常学習と同じ設定)
+    train_conf = cfg["default"]["training"]
+    scheduler = None
+    if train_conf["lr"].get("scheduler") == "StepLR":
+        scheduler = optim.lr_scheduler.StepLR(
+            optimizer, 
+            step_size=train_conf["lr"]["patience"], 
+            gamma=train_conf["lr"]["factor"]
+        )
+
+    # 再学習ループ
+    epochs = train_conf["epochs"]
+    best_loss = float('inf')
+    
+    early_stop_conf = train_conf.get("early_stopping", {})
+    es_enabled = early_stop_conf.get("enabled", False)
+    es_patience = early_stop_conf.get("patience", 20)
+    es_counter = 0
+    
+    history = []
+    save_path = model_save_dir / "optuna_best_model.pth"
+    
+    for epoch in range(1, epochs + 1):
+        train_loss = train_one_epoch(model, decoder, train_loader, optimizer, criterion, device)
+        if len(val_set) > 0:
+            val_loss = evaluate(model, decoder, val_loader, criterion, device)
+        else:
+            val_loss = 0.0
+        
+        history.append({
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "val_loss": val_loss,
+            "lr": optimizer.param_groups[0]["lr"]
+        })
+        
+        if scheduler:
+            scheduler.step()
+
+        if epoch % 10 == 0 or epoch == 1:
+            print(f"Retrain Epoch {epoch}/{epochs} | Train: {train_loss:.6f} | Val: {val_loss:.6f}")
+
+        if val_loss < best_loss:
+            best_loss = val_loss
+            es_counter = 0
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(model.state_dict(), save_path)
+        else:
+            es_counter += 1
+            if es_enabled and es_counter >= es_patience:
+                print(f"Early stopping at epoch {epoch}")
+                break
+    
+    # 履歴CSV保存
+    history_df = pd.DataFrame(history)
+    history_path = model_save_dir / "optuna_best_history.csv"
+    history_df.to_csv(history_path, index=False)
+    
+    # ★重要: 構成YAML保存
+    config_save_path = model_save_dir / "optuna_best_config.yaml"
+    with open(config_save_path, 'w') as f:
+        yaml.dump(model_config, f, sort_keys=False)
+    
+    print(f"Best model saved to {save_path}")
+    print(f"Config saved to {config_save_path}")
+    print(f"History saved to {history_path}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
