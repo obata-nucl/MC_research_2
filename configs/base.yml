@@ -8,3 +8,4 @@ dirs:
   output_dir: "./outputs"
   scripts_dir: "./scripts"
   src_dir: "./src"
+  npbos_dir: "./NPBOS"

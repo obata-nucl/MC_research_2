@@ -10,7 +10,7 @@ default:
     activation: "ReLU"      # ReLU, Tanh, SiLU etc.
   
   training:
-    batch_size: 64
+    batch_size: 32
     epochs: 300
     lr:
       initial: 0.001
@@ -20,6 +20,7 @@ default:
     optimizer: "Adam"
     loss_function: "MSE"
     val_split: 0.1
+    val_n: [90]
     early_stopping:
       enabled: true
       patience: 20
@@ -44,5 +45,5 @@ optuna:
 
     batch_size_list: [16, 32, 64]
 
-    lr_initial_min: 1e-5
+    lr_initial_min: 1e-4
     lr_initial_max: 1e-2

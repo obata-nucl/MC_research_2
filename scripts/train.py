@@ -98,7 +98,7 @@ def run_normal_training(cfg):
     
     # Dataset準備
     full_dataset = IBM2Dataset(cfg)
-    val_n_list = train_conf.get("validation_n", [88, 94])
+    val_n_list = train_conf["val_n"]
     train_set, val_set = get_manual_split(full_dataset, val_n_list)
     
     train_loader = DataLoader(train_set, batch_size=train_conf["batch_size"], shuffle=True)
@@ -230,7 +230,7 @@ def run_optuna_optimization(cfg):
         batch_size = trial.suggest_categorical("batch_size", search_space["batch_size_list"])
         
         # データ分割 (固定)
-        val_n_list = cfg["default"]["training"].get("validation_n", [88, 94])
+        val_n_list = cfg["default"]["training"]["val_n"]
         train_set, val_set = get_manual_split(full_dataset, val_n_list)
         
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
