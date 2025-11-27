@@ -263,7 +263,8 @@ def run_optuna_optimization(cfg):
 
     # 並列実行設定
     total_cores = os.cpu_count() or 1
-    n_jobs = max(1, total_cores // 2)
+    # SQLiteのロック回避のため、並列数を1に制限する
+    n_jobs = 1
     print(f"Running Optuna with {n_jobs} jobs (Storage: {storage_url})")
 
     study = optuna.create_study(
