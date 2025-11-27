@@ -6,7 +6,7 @@
 default:
   nn:
     input_dim: 2            # [N, n_nu]
-    hidden_sizes: [64, 64]  # デフォルトは64ノードの2層
+    hidden_sizes: [64, 32, 64]  # デフォルトは64ノードの2層
     activation: "ReLU"      # ReLU, Tanh, SiLU etc.
   
   training:
@@ -35,14 +35,14 @@ optuna:
   direction: "minimize"
 
   search_space:
-    hidden_layers_min: 1
+    hidden_layers_min: 2
     hidden_layers_max: 4
 
-    node_candidates: [16, 32, 64, 128]
+    node_candidates: [16, 32, 64]
 
     activation_list: ["ReLU", "Tanh", "SiLU"]
 
-    batch_size_list: [16, 32, 64, 128]
+    batch_size_list: [16, 32, 64]
 
     lr_initial_min: 1e-5
     lr_initial_max: 1e-2
