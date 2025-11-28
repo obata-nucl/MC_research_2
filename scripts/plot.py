@@ -101,6 +101,7 @@ def main():
     # ==========================================
     n_list = []
     params_history = {"epsilon": [], "kappa": [], "chi_nu": [], "chi_pi": [], "C_beta": []}
+    pes_data_list = [] # まとめてプロット用
     
     print("Generating PES & Parameter plots...")
     
@@ -118,15 +119,16 @@ def main():
             p = params.cpu().numpy()[0] # [eps, kap, chi_nu, chi_pi, C_beta]
             n_val = int(inputs[0, 0].item())
             
-            # --- PESプロット ---
+            # --- PESデータ収集 ---
             if args.type in ["pes", "all"]:
                 target_y = targets[0].cpu().numpy()
                 pred_y = preds[0].cpu().numpy()
                 
-                vis.plot_pes_comparison(
-                    dataset.beta_grid, target_y, pred_y, n_val, 
-                    filename=f"{prefix}PES_N{n_val}.png"
-                )
+                pes_data_list.append({
+                    "N": n_val,
+                    "target": target_y,
+                    "pred": pred_y
+                })
 
             # --- パラメータ収集 ---
             n_list.append(n_val)
@@ -135,6 +137,14 @@ def main():
             params_history["chi_nu"].append(p[2])
             params_history["chi_pi"].append(p[3])
             params_history["C_beta"].append(p[4])
+
+    # --- PESまとめてプロット ---
+    if args.type in ["pes", "all"] and pes_data_list:
+        vis.plot_all_pes(
+            dataset.beta_grid, 
+            pes_data_list, 
+            filename=f"{prefix}PES_all.png"
+        )
 
     # --- パラメータ推移プロット ---
     if args.type in ["params", "all"]:

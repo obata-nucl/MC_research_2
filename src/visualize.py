@@ -12,23 +12,57 @@ class IBM2Visualizer:
         plt.rcParams['figure.dpi'] = 300
         plt.rcParams['font.size'] = 12
 
-    def plot_pes_comparison(self, beta, target_E, pred_E, n_val, filename="PES.png"):
+    def plot_all_pes(self, beta, pes_data_list, filename="PES_all.png"):
         """
-        正解(HFB)と予測(IBM)のPESを重ねてプロット
+        全核種のPESをまとめてプロット
+        pes_data_list: [{"N": n, "target": target_E, "pred": pred_E}, ...]
         """
-        fig, ax = plt.subplots(figsize=(6, 4.5))
+        n_panels = len(pes_data_list)
+        cols = int(np.ceil(np.sqrt(n_panels)))
+        rows = int(np.ceil(n_panels / cols))
+        
+        base_w, base_h = 5.0, 4.0
+        fig, axes = plt.subplots(rows, cols, figsize=(base_w * cols, base_h * rows), sharex=True, sharey=True)
+        
+        # 軸ラベルは外側のプロットのみに表示
+        for ax in axes[-1, :]:
+            ax.set_xlabel(r"$\beta$", fontsize=14)
+        for ax in axes[:, 0]:
+            ax.set_ylabel("Energy [MeV]", fontsize=14)
 
-        ax.plot(beta, target_E, "ko", label="HFB", markersize=5, alpha=0.7)
-        ax.plot(beta, pred_E, "r-", label="IBM-2", linewidth=2)
+        # ソート (Nの昇順)
+        pes_data_list.sort(key=lambda x: x["N"])
         
-        ax.set_title(f"PES Comparison (N={n_val})")
-        ax.set_xlabel(r"Deformation $\beta$")
-        ax.set_ylabel("Energy [MeV]")
-        ax.legend()
-        ax.grid(True, linestyle='--', alpha=0.5)
-        
-        save_path = self.save_dir / filename
+        for i, data in enumerate(pes_data_list):
+            ax = axes.ravel()[i]
+            n_val = data["N"]
+            target_E = data["target"]
+            pred_E = data["pred"]
+            
+            # HFB (Target): オレンジ破線 + 青丸 (最小点)
+            ax.plot(beta, target_E, linestyle="--", color="tab:orange", label="HFB PES")
+            idx_min_expt = np.argmin(target_E)
+            ax.plot(beta[idx_min_expt], target_E[idx_min_expt], 'bo', markersize=6)
+            
+            # IBM (Pred): 黒実線 + 赤丸 (最小点)
+            ax.plot(beta, pred_E, linestyle="-", color="black", label="IBM PES")
+            idx_min_calc = np.argmin(pred_E)
+            ax.plot(beta[idx_min_calc], pred_E[idx_min_calc], 'ro', markersize=6)
+            
+            # タイトル (Sm固定)
+            mass_number = 62 + n_val
+            ax.set_title(rf"$^{{{mass_number}}}\mathrm{{Sm}}$", fontsize=18)
+            
+            ax.tick_params(axis="both", which="major", labelsize=12)
+            if i == 0: # 凡例は最初だけ
+                ax.legend(loc="best", fontsize=12)
+            
+        # 余ったサブプロットを非表示
+        for j in range(i + 1, rows * cols):
+            axes.ravel()[j].axis('off')
+            
         plt.tight_layout()
+        save_path = self.save_dir / filename
         plt.savefig(save_path)
         plt.close()
         print(f"Saved: {save_path}")
