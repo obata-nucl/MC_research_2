@@ -14,7 +14,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--optuna", action="store_true", help="Visualize Optuna best result")
     # type引数で描画対象を選べるようにする (デフォルトは全部)
-    parser.add_argument("--type", type=str, default="all", choices=["pes", "params", "loss", "all"])
+    parser.add_argument("--type", type=str, default="all", choices=["pes", "params", "loss", "spectra", "ratio", "all"])
     args = parser.parse_args()
 
     # 1. 設定ロード
@@ -152,6 +152,32 @@ def main():
             n_list, params_history, 
             filename=f"{prefix}params_trend.png"
         )
+
+    # ==========================================
+    # 6. Spectra & Ratio (from Analysis results)
+    # ==========================================
+    if args.type in ["spectra", "ratio", "all"]:
+        # Load Analysis Results
+        # prefix is "optuna_" or "normal_" -> remove last char -> "optuna" or "normal"
+        mode_name = prefix[:-1] 
+        analysis_file = output_dir / f"analysis_{mode_name}.csv"
+        expt_file = cfg["dirs"]["raw_dir"] / "expt.csv"
+        
+        if analysis_file.exists() and expt_file.exists():
+            print(f"Plotting Spectra & Ratio from {analysis_file} ...")
+            pred_df = pd.read_csv(analysis_file)
+            expt_df = pd.read_csv(expt_file)
+            
+            if args.type in ["spectra", "all"]:
+                vis.plot_spectra(pred_df, expt_df, filename=f"{prefix}spectra.png")
+                
+            if args.type in ["ratio", "all"]:
+                vis.plot_ratio(pred_df, expt_df, filename=f"{prefix}ratio.png")
+        else:
+            if not analysis_file.exists():
+                print(f"Warning: Analysis file not found at {analysis_file}. Run analyze.py first.")
+            if not expt_file.exists():
+                print(f"Warning: Expt file not found at {expt_file}")
         
     print("All plots generated.")
 

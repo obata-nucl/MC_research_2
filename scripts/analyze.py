@@ -153,25 +153,25 @@ def main():
         }
         
         if energies and len(energies) >= 4:
-            row["E2_1"] = energies[0]
-            row["E4_1"] = energies[1]
-            row["E6_1"] = energies[2]
-            row["E0_2"] = energies[3]
+            row["2+_1"] = energies[0]
+            row["4+_1"] = energies[1]
+            row["6+_1"] = energies[2]
+            row["0+_2"] = energies[3]
             
             if energies[0] != 0:
-                row["R4_2"] = energies[1] / energies[0]
+                row["R_4/2"] = energies[1] / energies[0]
             else:
-                row["R4_2"] = 0.0
+                row["R_4/2"] = 0.0
         else:
-            row["E2_1"] = None
-            row["E4_1"] = None
-            row["E6_1"] = None
-            row["E0_2"] = None
-            row["R4_2"] = None
+            row["2+_1"] = None
+            row["4+_1"] = None
+            row["6+_1"] = None
+            row["0+_2"] = None
+            row["R_4/2"] = None
 
         results.append(row)
         
-        r42_str = f"{row['R4_2']:.3f}" if row['R4_2'] is not None else "N/A"
+        r42_str = f"{row['R_4/2']:.3f}" if row['R_4/2'] is not None else "N/A"
         print(f"Z={z}, N={n} | eps={epsilon:.3f}, kap={kappa:.3f} | R4/2={r42_str}")
 
     # ==========================================

@@ -114,19 +114,94 @@ class IBM2Visualizer:
         """
         epochs = range(1, len(train_loss) + 1)
         
-        fig, ax = plt.subplots(figsize=(6, 4.5))
-        ax.plot(epochs, train_loss, label='Train Loss')
-        ax.plot(epochs, val_loss, label='Val Loss')
+        fig, ax = plt.subplots(figsize=(8, 6))
+        ax.plot(epochs, train_loss, label='Train Loss', linewidth=2)
+        ax.plot(epochs, val_loss, label='Val Loss', linewidth=2)
         
-        ax.set_xlabel("Epochs")
-        ax.set_ylabel("Weighted MSE Loss")
-        ax.set_title("Learning Curve")
+        ax.set_xlabel("Epochs", fontsize=14)
+        ax.set_ylabel("Weighted MSE Loss", fontsize=14)
+        ax.set_title("Learning Curve", fontsize=16)
         ax.set_yscale("log")
-        ax.legend()
-        ax.grid(True, which="both", linestyle="--", alpha=0.5)
+        ax.legend(fontsize=12)
+        
+        # グリッドと目盛りを細かく設定
+        ax.grid(True, which="major", linestyle="-", alpha=0.5)
+        ax.grid(True, which="minor", linestyle=":", alpha=0.3)
+        ax.minorticks_on()
+        ax.tick_params(axis='both', which='major', labelsize=12)
         
         save_path = self.save_dir / filename
         plt.tight_layout()
+        plt.savefig(save_path)
+        plt.close()
+        print(f"Saved: {save_path}")
+
+    def plot_spectra(self, pred_df, expt_df, filename="spectra.png"):
+        """
+        エネルギー準位の比較プロット (Project 1 style)
+        """
+        fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+        
+        levels = ["2+_1", "4+_1", "6+_1", "0+_2"]
+        markers = ['o', 's', '^', 'D']
+        colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
+        
+        # Theory (Pred)
+        ax[0].set_title("Theory (IBM-2)", fontsize=16)
+        for i, level in enumerate(levels):
+            if level in pred_df.columns:
+                valid = pred_df[level].notna()
+                ax[0].plot(pred_df.loc[valid, "N"], pred_df.loc[valid, level], 
+                           marker=markers[i], color=colors[i], label=level)
+
+        # Expt
+        ax[1].set_title("Experiment", fontsize=16)
+        for i, level in enumerate(levels):
+            if level in expt_df.columns:
+                valid = expt_df[level].notna()
+                ax[1].plot(expt_df.loc[valid, "N"], expt_df.loc[valid, level], 
+                           marker=markers[i], color=colors[i], label=level)
+
+        for a in ax:
+            a.set_xlabel("Neutron Number", fontsize=14)
+            a.set_ylabel("Energy [MeV]", fontsize=14)
+            a.set_ylim(0, 3.0)
+            a.legend(loc="best")
+            a.grid(True, linestyle='--', alpha=0.5)
+            a.tick_params(labelsize=12)
+            
+        plt.tight_layout()
+        save_path = self.save_dir / filename
+        plt.savefig(save_path)
+        plt.close()
+        print(f"Saved: {save_path}")
+
+    def plot_ratio(self, pred_df, expt_df, filename="ratio.png"):
+        """
+        R4/2比のプロット
+        """
+        fig, ax = plt.subplots(figsize=(8, 6))
+        
+        # Pred
+        if "R_4/2" in pred_df.columns:
+            ax.plot(pred_df["N"], pred_df["R_4/2"], marker='D', color="#2A23F3", 
+                    linewidth=2.0, label="Theory Ratio")
+        
+        # Expt
+        if "R_4/2" in expt_df.columns:
+            ax.plot(expt_df["N"], expt_df["R_4/2"], marker='D', color="#5C006E", 
+                    linestyle="--", linewidth=1.8, label="Expt. Ratio")
+        
+        ax.set_title(r"$E(4^+_1)/E(2^+_1)$ Ratio", fontsize=16)
+        ax.set_ylim(1.0, 3.5)
+        ax.set_xlabel("Neutron Number", fontsize=14)
+        ax.set_ylabel("Ratio", fontsize=14)
+        ax.legend(loc="best", fontsize=12)
+        ax.grid(True, linestyle='--', alpha=0.5)
+        ax.tick_params(labelsize=12)
+        
+        plt.tight_layout()
+        save_path = self.save_dir / filename
         plt.savefig(save_path)
         plt.close()
         print(f"Saved: {save_path}")
