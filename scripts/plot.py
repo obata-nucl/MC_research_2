@@ -29,6 +29,9 @@ def main():
     # Visualizer準備
     vis = IBM2Visualizer(save_dir=plot_dir)
 
+    mode_name = "optuna" if args.optuna else "normal"
+    prefix = f"{mode_name}_"
+
     # ==========================================
     # 2. ファイルパスの決定 (通常 vs Optuna)
     # ==========================================
@@ -37,7 +40,6 @@ def main():
         model_path = model_dir / "optuna_best_model.pth"
         history_path = model_dir / "optuna_best_history.csv"
         config_path = model_dir / "optuna_best_config.yaml"
-        prefix = "optuna_"
         if config_path.exists():
             print(f"Loading model config from {config_path}")
             with open(config_path, 'r') as f:
@@ -50,11 +52,28 @@ def main():
         print("Mode: Visualizing NORMAL training result")
         model_path = model_dir / "best_model.pth"
         history_path = model_dir / "training_history.csv" # train.pyの保存名に合わせる
-        prefix = "normal_"
         
         # 通常時はデフォルト設定を使用
         model_config = cfg["default"]["nn"].copy()
         model_config["fixed_chi_pi"] = cfg["nuclei"]["fixed_chi_pi"]
+
+    analysis_file = output_dir / f"analysis_{mode_name}.csv"
+    analysis_df = None
+    allowed_n_values = None
+    if analysis_file.exists():
+        try:
+            analysis_df = pd.read_csv(analysis_file)
+            if "N" in analysis_df.columns:
+                allowed_n_values = set(analysis_df["N"].astype(int).tolist())
+                print(f"Found {len(allowed_n_values)} nuclei in {analysis_file.name}.")
+            else:
+                print(f"Warning: Column 'N' missing in {analysis_file}. Cannot filter nuclei.")
+                analysis_df = None
+        except Exception as exc:
+            print(f"Warning: Failed to read {analysis_file}: {exc}")
+            analysis_df = None
+    else:
+        print(f"Warning: {analysis_file} not found. Run analyze.py to generate it.")
 
     # ==========================================
     # 3. 学習曲線 (Loss) のプロット
@@ -118,6 +137,9 @@ def main():
             # 値取り出し
             p = params.cpu().numpy()[0] # [eps, kap, chi_nu, chi_pi, C_beta]
             n_val = int(inputs[0, 0].item())
+
+            if allowed_n_values and n_val not in allowed_n_values:
+                continue
             
             # --- PESデータ収集 ---
             if args.type in ["pes", "all"]:
@@ -145,28 +167,43 @@ def main():
             pes_data_list, 
             filename=f"{prefix}PES_all.png"
         )
+    elif args.type in ["pes", "all"]:
+        print("Warning: No nuclei available for PES plot.")
 
     # --- パラメータ推移プロット ---
-    if args.type in ["params", "all"]:
+    if args.type in ["params", "all"] and n_list:
         vis.plot_parameters_evolution(
             n_list, params_history, 
             filename=f"{prefix}params_trend.png"
         )
+    elif args.type in ["params", "all"]:
+        print("Warning: No nuclei available for parameter plot.")
 
     # ==========================================
     # 6. Spectra & Ratio (from Analysis results)
     # ==========================================
     if args.type in ["spectra", "ratio", "all"]:
         # Load Analysis Results
-        # prefix is "optuna_" or "normal_" -> remove last char -> "optuna" or "normal"
-        mode_name = prefix[:-1] 
-        analysis_file = output_dir / f"analysis_{mode_name}.csv"
         expt_file = cfg["dirs"]["raw_dir"] / "expt.csv"
+        n_min = cfg["nuclei"].get("n_min")
+        n_max = cfg["nuclei"].get("n_max")
         
-        if analysis_file.exists() and expt_file.exists():
+        if analysis_df is None and analysis_file.exists():
+            try:
+                analysis_df = pd.read_csv(analysis_file)
+            except Exception as exc:
+                print(f"Warning: Failed to read {analysis_file}: {exc}")
+                analysis_df = None
+
+        if analysis_df is not None and expt_file.exists():
             print(f"Plotting Spectra & Ratio from {analysis_file} ...")
-            pred_df = pd.read_csv(analysis_file)
+            pred_df = analysis_df.copy()
             expt_df = pd.read_csv(expt_file)
+
+            if "N" in pred_df.columns and n_min is not None and n_max is not None:
+                pred_df = pred_df[(pred_df["N"] >= n_min) & (pred_df["N"] <= n_max)]
+            if "N" in expt_df.columns and n_min is not None and n_max is not None:
+                expt_df = expt_df[(expt_df["N"] >= n_min) & (expt_df["N"] <= n_max)]
             
             if args.type in ["spectra", "all"]:
                 vis.plot_spectra(pred_df, expt_df, filename=f"{prefix}spectra.png")
@@ -174,8 +211,8 @@ def main():
             if args.type in ["ratio", "all"]:
                 vis.plot_ratio(pred_df, expt_df, filename=f"{prefix}ratio.png")
         else:
-            if not analysis_file.exists():
-                print(f"Warning: Analysis file not found at {analysis_file}. Run analyze.py first.")
+            if analysis_df is None:
+                print(f"Warning: Analysis file not available at {analysis_file}. Run analyze.py first.")
             if not expt_file.exists():
                 print(f"Warning: Expt file not found at {expt_file}")
         
