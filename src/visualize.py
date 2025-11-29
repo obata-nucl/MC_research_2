@@ -86,6 +86,12 @@ class IBM2Visualizer:
         keys = ["epsilon", "kappa", "chi_pi", "chi_nu", "C_beta"]
         keys_labels = [r"$\epsilon$", r"$\kappa$", r"$\chi_{\pi}$", r"$\chi_{\nu}$", r"$C_{\beta}$"]
         colors = ["blue", "green", "orange", "red", "purple"]
+        param_limits = {
+            "epsilon": (0.0, 3.0),
+            "kappa": (-1.0, 0.0),
+            "chi_nu": (-1.5, 0.0),
+            "C_beta": (1.0, 6.0)
+        }
 
         # n_listに基づいてソート順を決定
         sorted_indices = np.argsort(n_list)
@@ -106,6 +112,8 @@ class IBM2Visualizer:
             ax.set_title(f"Evolution of {keys_labels[i]}")
             ax.grid(True, linestyle="--", alpha=0.5)
             ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+            if key in param_limits:
+                ax.set_ylim(*param_limits[key])
         
         if len(keys) < 6:
             for j in range(len(keys), 6):
