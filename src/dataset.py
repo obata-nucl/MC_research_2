@@ -74,8 +74,8 @@ class IBM2Dataset(Dataset):
                 raise FileNotFoundError(f"file not found : {file_path}")
             
             try:
-                # ヘッダーなしとして読み込む (データが1行目からある場合)
-                df = pd.read_csv(file_path, header=None, names=["Beta", "Energy"])
+                # ヘッダーがあるとして読み込む
+                df = pd.read_csv(file_path, header=0, names=["Beta", "Energy"])
                 df = df.sort_values(by="Beta")
                 
                 raw_beta = df["Beta"].values

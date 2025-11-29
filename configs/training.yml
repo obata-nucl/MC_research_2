@@ -5,7 +5,7 @@
 
 default:
   nn:
-    input_dim: 2            # [N, n_nu]
+    input_dim: 3            # [N, n_nu, N^2]
     hidden_sizes: [64, 32, 64]  # デフォルトは64ノードの2層
     activation: "ReLU"      # ReLU, Tanh, SiLU etc.
   
