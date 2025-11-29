@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
+from matplotlib.ticker import MaxNLocator
 
 
 class IBM2Visualizer:
@@ -11,6 +12,13 @@ class IBM2Visualizer:
         plt.rcParams['font.family'] = "serif"
         plt.rcParams['figure.dpi'] = 300
         plt.rcParams['font.size'] = 12
+
+    @staticmethod
+    def _resolve_column(df, candidates):
+        for name in candidates:
+            if name in df.columns:
+                return name
+        return None
 
     def plot_all_pes(self, beta, pes_data_list, filename="PES_all.png"):
         """
@@ -97,6 +105,7 @@ class IBM2Visualizer:
             ax.set_ylabel(keys_labels[i])
             ax.set_title(f"Evolution of {keys_labels[i]}")
             ax.grid(True, linestyle="--", alpha=0.5)
+            ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         
         if len(keys) < 6:
             for j in range(len(keys), 6):
@@ -145,30 +154,46 @@ class IBM2Visualizer:
         levels = ["2+_1", "4+_1", "6+_1", "0+_2"]
         markers = ['o', 's', '^', 'D']
         colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
+        level_aliases = {
+            "2+_1": ["2+_1", "E2_1"],
+            "4+_1": ["4+_1", "E4_1"],
+            "6+_1": ["6+_1", "E6_1"],
+            "0+_2": ["0+_2", "E0_2"]
+        }
         
         # Theory (Pred)
         ax[0].set_title("Theory (IBM-2)", fontsize=16)
         for i, level in enumerate(levels):
-            if level in pred_df.columns:
-                valid = pred_df[level].notna()
-                ax[0].plot(pred_df.loc[valid, "N"], pred_df.loc[valid, level], 
-                           marker=markers[i], color=colors[i], label=level)
+            col = self._resolve_column(pred_df, level_aliases[level])
+            if col is None:
+                continue
+            valid = pred_df[col].notna()
+            if not valid.any():
+                continue
+            ax[0].plot(pred_df.loc[valid, "N"], pred_df.loc[valid, col], 
+                       marker=markers[i], color=colors[i], label=level)
 
         # Expt
         ax[1].set_title("Experiment", fontsize=16)
         for i, level in enumerate(levels):
-            if level in expt_df.columns:
-                valid = expt_df[level].notna()
-                ax[1].plot(expt_df.loc[valid, "N"], expt_df.loc[valid, level], 
-                           marker=markers[i], color=colors[i], label=level)
+            col = self._resolve_column(expt_df, level_aliases[level])
+            if col is None:
+                continue
+            valid = expt_df[col].notna()
+            if not valid.any():
+                continue
+            ax[1].plot(expt_df.loc[valid, "N"], expt_df.loc[valid, col], 
+                       marker=markers[i], color=colors[i], label=level)
 
         for a in ax:
             a.set_xlabel("Neutron Number", fontsize=14)
             a.set_ylabel("Energy [MeV]", fontsize=14)
-            a.set_ylim(0, 3.0)
             a.legend(loc="best")
             a.grid(True, linestyle='--', alpha=0.5)
             a.tick_params(labelsize=12)
+            a.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        ax[1].set_ylim(0.0, 3.0)
             
         plt.tight_layout()
         save_path = self.save_dir / filename
@@ -182,15 +207,23 @@ class IBM2Visualizer:
         """
         fig, ax = plt.subplots(figsize=(8, 6))
         
+        ratio_aliases = ["R_4/2", "R4_2"]
+        pred_col = self._resolve_column(pred_df, ratio_aliases)
+        expt_col = self._resolve_column(expt_df, ratio_aliases)
+
         # Pred
-        if "R_4/2" in pred_df.columns:
-            ax.plot(pred_df["N"], pred_df["R_4/2"], marker='D', color="#2A23F3", 
-                    linewidth=2.0, label="Theory Ratio")
+        if pred_col is not None:
+            valid = pred_df[pred_col].notna()
+            if valid.any():
+                ax.plot(pred_df.loc[valid, "N"], pred_df.loc[valid, pred_col], marker='D', color="#2A23F3", 
+                        linewidth=2.0, label="Theory Ratio")
         
         # Expt
-        if "R_4/2" in expt_df.columns:
-            ax.plot(expt_df["N"], expt_df["R_4/2"], marker='D', color="#5C006E", 
-                    linestyle="--", linewidth=1.8, label="Expt. Ratio")
+        if expt_col is not None:
+            valid = expt_df[expt_col].notna()
+            if valid.any():
+                ax.plot(expt_df.loc[valid, "N"], expt_df.loc[valid, expt_col], marker='D', color="#5C006E", 
+                        linestyle="--", linewidth=1.8, label="Expt. Ratio")
         
         ax.set_title(r"$E(4^+_1)/E(2^+_1)$ Ratio", fontsize=16)
         ax.set_ylim(1.0, 3.5)
@@ -199,6 +232,7 @@ class IBM2Visualizer:
         ax.legend(loc="best", fontsize=12)
         ax.grid(True, linestyle='--', alpha=0.5)
         ax.tick_params(labelsize=12)
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         
         plt.tight_layout()
         save_path = self.save_dir / filename
