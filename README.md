@@ -1,7 +1,7 @@
 # MC_research_2 (project2)
 
 ## 概要
-このプロジェクトは、ニューラルネットワークを用いて原子核物理学における **IBM2 (Interacting boson model 2)** のハミルトニアンのパラメータ ($\epsilon, \kappa, \chi_\nu, \chi_pi$) と PES(Potential energy surface)のスケール因子 ($C_\beta$)を推定するための研究用コードです。
+このプロジェクトは、ニューラルネットワークを用いて原子核物理学における **IBM2 (Interacting boson model 2)** のハミルトニアンのパラメータ ($\epsilon, \kappa, \chi_\nu, \chi_pi$) と PES (Potential energy surface) のスケール因子 ($C_\beta$)を推定するための研究用コードです。
 **Hartree-Fock-Bogoliubov(HFB)** 法などで計算されたPESから、最適なIBM2パラメータを逆推定することを目的としています。また、推定されたパラメータを用いてIBMの計算コードである`NPBOS`を実行し、エネルギースペクトルを計算することで実験値と比較評価する機能も備えています。
 
 ## ディレクトリ構造
@@ -44,7 +44,7 @@ project2/
 
 ### 1. Python環境の構築
 
-**注意**: 以下のコマンドはすべて、プロジェクトのルートディレクトリ（`project1/`）で実行してください。
+**注意**: 以下のコマンドはすべて、プロジェクトのルートディレクトリ (`project1/`) で実行してください。
 
 仮想環境を作成し、依存ライブラリをインストールすることをお勧めします。
 
@@ -99,11 +99,11 @@ cd ..
 ## データ（Data）
 
 - `data/raw/`:
-	- 各中性子数 N ごとに CSV ファイル（例: `86.csv`）を配置してください。
-	- CSV はヘッダーあり（`Beta`, `Energy`）を想定しています。
+	- 各中性子数 N ごとに CSV ファイル (例: `86.csv`) を配置してください。
+	- CSV はヘッダーあり (`Beta`, `Energy`) を想定しています。
 
 - `data/processed/`:
-	- 前処理済みデータ（キャッシュ）を置く想定のディレクトリです（例: `86.npz`）。
+	- 前処理済みデータ (キャッシュ) を置く想定のディレクトリです（例: `86.npz`）。
 	- **注意**: 現時点の実装では `src/dataset.py` は `data/raw/` を直接読み込み、`data/processed/` を自動的に利用しません。将来的に `processed/` を読み書きするキャッシュ機能の追加をおすすめします。
 
 ---
@@ -146,10 +146,10 @@ python -m scripts.plot --type ratio
 ## 出力（Outputs）
 
 - `outputs/models/`:
-	- `best_model.pth`, `optuna_best_model.pth`（モデル重み）
-	- `training_history.csv`, `optuna_best_history.csv`（学習履歴）
-	- `optuna_best_config.yaml`（再学習設定）
-- `outputs/analysis_*.csv`: NPBOS 実行結果と推定したパラメータのまとめ（`R4/2` 等を含む）
+	- `best_model.pth`, `optuna_best_model.pth` (モデル重み)
+	- `training_history.csv`, `optuna_best_history.csv` (学習履歴)
+	- `optuna_best_config.yaml` (再学習設定)
+- `outputs/analysis_*.csv`: NPBOS 実行結果と推定したパラメータのまとめ (`R4/2` 等を含む)
 - `outputs/plots/`: 学習曲線、PES、パラメータ推移、スペクトル、比率などの図を出力します
 
 ---
@@ -167,5 +167,43 @@ python -m scripts.plot --type ratio
 - CSV の読み込みで `unsupported operand type(s) for -: 'str' and 'float'` が出る場合：
 	- CSV のヘッダーを `Beta, Energy` で正しく記載し、数値データの行が存在することを確認してください。
 
-- `input_dim` エラーや形状不一致（`mat1 and mat2 shapes cannot be multiplied` など）の場合：
-	- `configs/training.yml` の `default.nn.input_dim` が `dataset.py` の出力（現在: 3）に一致しているか確認してください。`dataset.py` は `[norm_N, norm_n_nu, norm_N_sq]` を入力として返します。
+- `input_dim` エラーや形状不一致 (`mat1 and mat2 shapes cannot be multiplied` など) の場合：
+	- `configs/training.yml` の `default.nn.input_dim` が `dataset.py` の出力 (現在: 3) に一致しているか確認してください。`dataset.py` は `[norm_N, norm_n_nu, norm_N_sq]` を入力として返します。
+
+---
+
+## Neural Network Architecture
+
+このプロジェクトで実装されているニューラルネットワークの構造を図示します。以下は README 内でそのままレンダリング可能な Mermaid 図と簡単な説明です。
+
+- 入力: `[norm_N, norm_n_nu, norm_N_sq]`（3要素）
+- MLP: `input_dim = 3` -> `hidden_sizes`（例：`[64, 32, 64]`）
+- 出力ヘッド:
+    - `head_chi_nu` -> χ_ν (1)
+    - `head_interaction` -> ε, κ, C_β (3)
+    - `chi_pi` は `fixed_chi_pi` としてバッファ（固定値）
+- デコーダ: `IBM2PESDecoder` （パラメータ、n_pi/n_nu, beta_grid から PES を計算）
+
+```mermaid
+flowchart LR
+    IN[Input: norm_N (1)\n norm_n_nu (1)\n norm_N_sq (1)]
+    MLP[MLP\ninput_dim=3\nhidden: 64 -> 32 -> 64\nact: ReLU]
+    H1[head_chi_nu\n(out: 1)]
+    H2[head_interaction\n(out: 3 -> eps,kappa,C_beta)]
+    FIX[fixed_chi_pi\n(buffer)]
+    CONCAT[Concatenate -> Params\n(eps,kappa,chi_nu,chi_pi,C_beta)]
+    DEC[IBM2PESDecoder\n(beta_grid -> PES vector)]
+
+    IN --> MLP
+    MLP --> H1
+    MLP --> H2
+    H1 --> CONCAT
+    H2 --> CONCAT
+    FIX --> CONCAT
+    CONCAT --> DEC
+```
+
+図の注記:
+- `norm_N`: N を 126 で割って正規化した値、`norm_n_nu`はボソン数に対する正規化、`norm_N_sq` は N (正規化後) の二乗です。
+- `head_interaction` が $\epsilon, \kappa, C_{\beta}$ を生成し、`head_chi_nu` が $\chi_{\nu}$ を出力します。`chi_pi` はネットワークにより固定値として扱われます。
+- Decoder は生成したパラメータと $\chi_{\pi}, \chi_{\nu}$ (生の値) を用いて PES を β-grid に沿って計算します。
