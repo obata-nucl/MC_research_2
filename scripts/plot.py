@@ -136,7 +136,9 @@ def main():
             
             # 値取り出し
             p = params.cpu().numpy()[0] # [eps, kap, chi_nu, chi_pi, C_beta]
-            n_val = int(inputs[0, 0].item())
+            # inputs: [norm_N, norm_n_nu, norm_N_sq]
+            # Nを復元する: norm_N = N / 126.0 -> N = norm_N * 126.0
+            n_val = int(round(inputs[0, 0].item() * 126.0))
 
             if allowed_n_values and n_val not in allowed_n_values:
                 continue

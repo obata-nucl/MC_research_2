@@ -122,9 +122,14 @@ def main():
         n_nu = item["n_nu"]
         mass_num = z + n
         
-        # モデル入力作成 [N, n_nu]
+        # モデル入力作成 [N, n_nu, N^2]
         # dataset.pyの実装に合わせて入力を作成
-        inp = torch.tensor([[float(n), float(n_nu)]], device=device)
+        # dataset.py: inputs = torch.tensor([norm_N, norm_n_nu, norm_N_sq], dtype=torch.float32)
+        norm_N = float(n) / 126.0
+        norm_n_nu = float(n_nu) / 30.0
+        norm_N_sq = norm_N ** 2
+        
+        inp = torch.tensor([[norm_N, norm_n_nu, norm_N_sq]], device=device)
         
         with torch.no_grad():
             # Output: [epsilon, kappa, chi_nu, chi_pi, C_beta]
