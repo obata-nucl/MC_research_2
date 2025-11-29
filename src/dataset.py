@@ -67,27 +67,29 @@ class IBM2Dataset(Dataset):
         print(f"Target Range: Z={list(self.z_range)}, N={list(self.n_range)}")
         
         for z, n in itertools.product(self.z_range, self.n_range):
-            # ファイル名: "84.csv" のような形式 (Zはファイル名に含まれない前提)
-            # もし将来 "62_84.csv" になるなら f"{z}_{n}.csv" に変更
             filename = f"{n}.csv"
             file_path = self.raw_dir / filename
             
-            # 指定範囲のファイルが無い場合はスキップ
             if not file_path.exists():
                 raise FileNotFoundError(f"file not found : {file_path}")
             
             try:
-                df = pd.read_csv(file_path, header=0, names=["Beta", "Energy"])
+                # ヘッダーなしとして読み込む (データが1行目からある場合)
+                df = pd.read_csv(file_path, header=None, names=["Beta", "Energy"])
                 df = df.sort_values(by="Beta")
+                
                 raw_beta = df["Beta"].values
                 raw_energy = df["Energy"].values
 
+                # グリッドのマッチング
                 diff_matrix = np.abs(raw_beta[:, None] - self.beta_grid[None, :])
                 min_diff_idx = np.argmin(diff_matrix, axis=0)
                 min_diffs = np.min(diff_matrix, axis=0)
+                
                 if not np.all(min_diffs < 1e-4):
                     failed_betas = self.beta_grid[min_diffs >= 1e-4]
-                    raise ValueError(f"Failed to find close beta values for: {failed_betas}")
+                    raise ValueError(f"Failed to find close beta values for: {failed_betas} in {filename}")
+                
                 target_energy = raw_energy[min_diff_idx]
 
                 # エネルギーの基準をbeta = 0に合わせる
@@ -117,15 +119,26 @@ class IBM2Dataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
         
-        # 入力データ: [N, n_nu]
-        # [Future] 同位体以外も学習する場合 [Z, N, n_pi, n_nu]に変更し
-        inputs = torch.tensor([float(item["N"]), float(item["n_nu"])], dtype=torch.float32)
+        # --- 値の取得 ---
+        raw_N = float(item["N"])
+        raw_n_nu = float(item["n_nu"])
+
+        # --- 特徴量の正規化と作成 ---
+        # 1. 中性子数 N (次の魔法数126を基準に正規化)
+        norm_N = raw_N / 126.0
         
-        # 教師データ
+        # 2. 中性子ボソン数 n_nu (最大数より少し大きい30で正規化)
+        norm_n_nu = raw_n_nu / 30.0
+        
+        # 3. Nの二乗 (非線形性を捉えるため)
+        norm_N_sq = norm_N ** 2
+        
+        # 入力データ: [N, n_nu, N^2]
+        inputs = torch.tensor([norm_N, norm_n_nu, norm_N_sq], dtype=torch.float32)
+        
+        # --- 教師データと物理量 ---
         target = torch.tensor(item["target_pes"], dtype=torch.float32)
-        
-        # 物理層(Decoder)用のスカラー値 (入力が[Z, N, n_pi, n_nu]の場合は不要)
         n_pi = torch.tensor(float(item["n_pi"]), dtype=torch.float32)
-        n_nu = torch.tensor(float(item["n_nu"]), dtype=torch.float32)
+        n_nu = torch.tensor(raw_n_nu, dtype=torch.float32) # Decoderには生の値を渡す
         
         return inputs, target, n_pi, n_nu
