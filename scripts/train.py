@@ -109,9 +109,12 @@ def run_normal_training(cfg):
     # fixed_chi_pi の取得
     if "nuclei" in cfg["nuclei"]:
         fixed_chi_pi = cfg["nuclei"]["nuclei"]["fixed_chi_pi"]
+        fixed_C_beta = cfg["nuclei"]["nuclei"]["fixed_C_beta"]
     else:
         fixed_chi_pi = cfg["nuclei"]["fixed_chi_pi"]
+        fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
     model_config["fixed_chi_pi"] = fixed_chi_pi
+    model_config["fixed_C_beta"] = fixed_C_beta
     
     model = IBM2FlexibleNet(model_config).to(device)
     decoder = IBM2PESDecoder(beta_f_grid=full_dataset.beta_grid).to(device)
@@ -203,8 +206,10 @@ def run_optuna_optimization(cfg):
     
     if "nuclei" in cfg["nuclei"]:
         fixed_chi_pi = cfg["nuclei"]["nuclei"]["fixed_chi_pi"]
+        fixed_C_beta = cfg["nuclei"]["nuclei"]["fixed_C_beta"]
     else:
         fixed_chi_pi = cfg["nuclei"]["fixed_chi_pi"]
+        fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
     
     # ★修正: Configからinput_dimを取得 (デフォルト値)
     default_input_dim = cfg["default"]["nn"]["input_dim"]
@@ -234,7 +239,8 @@ def run_optuna_optimization(cfg):
             "input_dim": default_input_dim,
             "hidden_sizes": hidden_sizes,
             "activation": act_name,
-            "fixed_chi_pi": fixed_chi_pi
+            "fixed_chi_pi": fixed_chi_pi,
+            "fixed_C_beta": fixed_C_beta
         }
         
         model = IBM2FlexibleNet(model_config).to(device)
@@ -289,7 +295,8 @@ def run_optuna_optimization(cfg):
         "input_dim": default_input_dim,
         "hidden_sizes": hidden_sizes,
         "activation": act_name,
-        "fixed_chi_pi": fixed_chi_pi
+        "fixed_chi_pi": fixed_chi_pi,
+        "fixed_C_beta": fixed_C_beta
     }
     
     # DataLoader

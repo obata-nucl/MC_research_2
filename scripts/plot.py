@@ -48,6 +48,7 @@ def main():
             print("Warning: Config file not found. Using default config (Running may fail).")
             model_config = cfg["default"]["nn"].copy()
             model_config["fixed_chi_pi"] = cfg["nuclei"]["fixed_chi_pi"]
+            model_config["fixed_C_beta"] = cfg["nuclei"]["fixed_C_beta"]
     else:
         print("Mode: Visualizing NORMAL training result")
         model_path = model_dir / "best_model.pth"
@@ -56,6 +57,7 @@ def main():
         # 通常時はデフォルト設定を使用
         model_config = cfg["default"]["nn"].copy()
         model_config["fixed_chi_pi"] = cfg["nuclei"]["fixed_chi_pi"]
+        model_config["fixed_C_beta"] = cfg["nuclei"]["fixed_C_beta"]
 
     analysis_file = output_dir / f"analysis_{mode_name}.csv"
     analysis_df = None

@@ -62,23 +62,29 @@ class IBM2FlexibleNet(nn.Module):
         fixed_chi_pi = config["fixed_chi_pi"]
         self.register_buffer("fixed_chi_pi", torch.tensor(float(fixed_chi_pi)))
 
-        # (C) epsilon, kappa, C_beta : 特徴量から抽出 (現在はY字型ではく中性子の特徴量のみから予測)
-        self.head_interaction = nn.Linear(branch_output_dim, 3)
+        # (C) epsilon, kappa : ハミルトニアンのパラメータ
+        self.head_hamiltonian = nn.Linear(branch_output_dim, 2)
+
+        # (D) C_beta : 固定値 (PESの座標スケールパラメータ)
+        fixed_C_beta = config["fixed_C_beta"]
+        self.register_buffer("fixed_C_beta", torch.tensor(float(fixed_C_beta)))
 
         # [Future] 陽子数変化に対応する場合
         # self.head_chi_pi = nn.Linear(proton_branch_output_dim, 1)を追加
         # 固定値バッファを削除
-        # self.head_inteaction = nn.Sequential(
+        # self.head_interaction = nn.Sequential(
         #     nn.Linear(neutron_branch_output_dim + proton_branch_output_dim, neuron_branch_output_dim),
         #     _get_activation(act_name),
-        #     nn.Linear(neuron_branch_output_dim, 3)
+        #     nn.Linear(neuron_branch_output_dim, 2)
         # )
+        # self.head_c_beta = ...
         self.softplus = nn.Softplus()
     
     def forward(self, x):
         """ Args:
-                x; [batch_size, 2] -> [N, n_nu]
-            [Future] 陽子数Zも考慮する場合 (neutron_x, proton_x)を受け取るよう変更
+                x; [batch_size, 3] -> [N, n_nu, N^2]
+            
+            [Future] 陽子数Zも考慮する場合 (neutron_x, proton_x)を受け取るよう変更 neutron_x: [N, n_nu, N^2], proton_x: [Z, n_pi, Z^2]
         """
         h = self.neutron_branch(x)
 
@@ -87,18 +93,21 @@ class IBM2FlexibleNet(nn.Module):
         # h_pi = self.proton_branch(proton_x)
         # h = torch.cat([h_nu, h_pi], dim=-1)
 
-        chi_nu = self.head_chi_nu(h)                # [batch_size, 1]
-        chi_nu = - self.softplus(chi_nu)
+        chi_nu = self.head_chi_nu(h)
+        chi_nu = - 1.5 * torch.sigmoid(chi_nu)
         chi_pi = self.fixed_chi_pi.expand_as(chi_nu)
-        interaction = self.head_interaction(h)      # [batch_size, 3]
-        epsilon = interaction[:, 0:1]               # [batch_size, 1]
-        kappa   = interaction[:, 1:2]               # [batch_size, 1]
-        C_beta  = interaction[:, 2:3]               # [batch_size, 1]
+        
+        # Hamiltonian parameters
+        hamiltonian = self.head_hamiltonian(h)      # [batch_size, 2]
+        epsilon = hamiltonian[:, 0:1]               # [batch_size, 1]
+        kappa   = hamiltonian[:, 1:2]               # [batch_size, 1]
+        
+        # Scale parameter
+        C_beta = self.fixed_C_beta.expand_as(epsilon) # [batch_size, 1]
 
         epsilon = self.softplus(epsilon)
         kappa   = - self.softplus(kappa)
-        C_beta  = self.softplus(C_beta)
-
+        
         return torch.cat([epsilon, kappa, chi_nu, chi_pi, C_beta], dim=1)  # [batch_size, 5]
     
 class IBM2PESDecoder(nn.Module):
