@@ -90,11 +90,13 @@ def main():
             print("Warning: Config file not found. Using default config.")
             model_config = cfg["default"]["nn"].copy()
             model_config["fixed_chi_pi"] = cfg["nuclei"]["fixed_chi_pi"]
+            model_config["fixed_C_beta"] = cfg["nuclei"]["fixed_C_beta"]
     else:
         print("Mode: Analyzing NORMAL training result")
         model_path = model_dir / "best_model.pth"
         model_config = cfg["default"]["nn"].copy()
         model_config["fixed_chi_pi"] = cfg["nuclei"]["fixed_chi_pi"]
+        model_config["fixed_C_beta"] = cfg["nuclei"]["fixed_C_beta"]
 
     if not model_path.exists():
         print(f"Error: Model file not found at {model_path}")
