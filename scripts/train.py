@@ -95,7 +95,7 @@ def run_normal_training(cfg):
     
     # Dataset
     full_dataset = IBM2Dataset(cfg)
-    val_n_list = train_conf.get("validation_n", [88, 94])
+    val_n_list = train_conf.get("validation_n", [90])
     train_set, val_set = get_manual_split(full_dataset, val_n_list)
     
     train_loader = DataLoader(train_set, batch_size=train_conf["batch_size"], shuffle=True)
@@ -121,7 +121,7 @@ def run_normal_training(cfg):
     
     # Optimizer & Loss
     optimizer = optim.Adam(model.parameters(), lr=train_conf["lr"]["initial"])
-    criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.5)
+    criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.0)
     
     scheduler = None
     if train_conf["lr"].get("scheduler") == "StepLR":
@@ -228,7 +228,7 @@ def run_optuna_optimization(cfg):
         batch_size = trial.suggest_categorical("batch_size", search_space["batch_size_list"])
         
         # Validation Split
-        val_n_list = cfg["default"]["training"].get("validation_n", [88, 94])
+        val_n_list = cfg["default"]["training"].get("validation_n", [90])
         train_set, val_set = get_manual_split(full_dataset, val_n_list)
         
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -246,7 +246,7 @@ def run_optuna_optimization(cfg):
         model = IBM2FlexibleNet(model_config).to(device)
         decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr_init)
-        criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.5)
+        criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.0)
         
         n_epochs = 50
         
@@ -300,7 +300,7 @@ def run_optuna_optimization(cfg):
     }
     
     # DataLoader
-    val_n_list = cfg["default"]["training"].get("validation_n", [88, 94])
+    val_n_list = cfg["default"]["training"].get("validation_n", [90])
     train_set, val_set = get_manual_split(full_dataset, val_n_list)
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
@@ -309,7 +309,7 @@ def run_optuna_optimization(cfg):
     model = IBM2FlexibleNet(model_config).to(device)
     decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr_init)
-    criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.5)
+    criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.0)
     
     # Scheduler
     train_conf = cfg["default"]["training"]
