@@ -23,7 +23,7 @@ outputs/*
 .idea/
 
 # IBM specific files
-NPBOS/
+NPBOS/*
 
 
 !**/.gitkeep
