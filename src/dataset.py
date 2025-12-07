@@ -122,19 +122,23 @@ class IBM2Dataset(Dataset):
         # --- 値の取得 ---
         raw_N = float(item["N"])
         raw_n_nu = float(item["n_nu"])
+        raw_n_pi = float(item["n_pi"])
 
         # --- 特徴量の正規化と作成 ---
-        # 1. 中性子数 N (次の魔法数126を基準に正規化)
-        norm_N = raw_N / 126.0
-        
-        # 2. 中性子ボソン数 n_nu (最大数より少し大きい30で正規化)
+        # 1. 中性子ボソン数 n_nu (最大数より少し大きい30で正規化)
         norm_n_nu = raw_n_nu / 30.0
         
-        # 3. Nの二乗 (非線形性を捉えるため)
-        norm_N_sq = norm_N ** 2
+        # 2. Casten factor P = (n_pi * n_nu) / (n_pi + n_nu)
+        if (raw_n_pi + raw_n_nu) == 0:
+            P = 0.0
+        else:
+            P = (raw_n_pi * raw_n_nu) / (raw_n_pi + raw_n_nu)
         
-        # 入力データ: [N, n_nu, N^2]
-        inputs = torch.tensor([norm_N, norm_n_nu, norm_N_sq], dtype=torch.float32)
+        # Pの正規化 (最大値はおよそ10程度なので10で割る)
+        norm_P = P / 10.0
+        
+        # 入力データ: [n_nu, P]
+        inputs = torch.tensor([norm_n_nu, norm_P], dtype=torch.float32)
         
         # --- 教師データと物理量 ---
         target = torch.tensor(item["target_pes"], dtype=torch.float32)

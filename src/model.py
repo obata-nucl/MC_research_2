@@ -82,7 +82,7 @@ class IBM2FlexibleNet(nn.Module):
     
     def forward(self, x):
         """ Args:
-                x; [batch_size, 3] -> [N, n_nu, N^2]
+                x; [batch_size, 2] -> [n_nu, P]
             
             [Future] 陽子数Zも考慮する場合 (neutron_x, proton_x)を受け取るよう変更 neutron_x: [N, n_nu, N^2], proton_x: [Z, n_pi, Z^2]
         """
