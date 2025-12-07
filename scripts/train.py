@@ -106,14 +106,11 @@ def run_normal_training(cfg):
 
     # Model
     model_config = nn_conf.copy()
-    # fixed_chi_pi の取得
+    # fixed_C_beta の取得
     if "nuclei" in cfg["nuclei"]:
-        fixed_chi_pi = cfg["nuclei"]["nuclei"]["fixed_chi_pi"]
         fixed_C_beta = cfg["nuclei"]["nuclei"]["fixed_C_beta"]
     else:
-        fixed_chi_pi = cfg["nuclei"]["fixed_chi_pi"]
         fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
-    model_config["fixed_chi_pi"] = fixed_chi_pi
     model_config["fixed_C_beta"] = fixed_C_beta
     
     model = IBM2FlexibleNet(model_config).to(device)
@@ -205,10 +202,8 @@ def run_optuna_optimization(cfg):
     beta_grid = full_dataset.beta_grid
     
     if "nuclei" in cfg["nuclei"]:
-        fixed_chi_pi = cfg["nuclei"]["nuclei"]["fixed_chi_pi"]
         fixed_C_beta = cfg["nuclei"]["nuclei"]["fixed_C_beta"]
     else:
-        fixed_chi_pi = cfg["nuclei"]["fixed_chi_pi"]
         fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
     
     # ★修正: Configからinput_dimを取得 (デフォルト値)
@@ -239,7 +234,6 @@ def run_optuna_optimization(cfg):
             "input_dim": default_input_dim,
             "hidden_sizes": hidden_sizes,
             "activation": act_name,
-            "fixed_chi_pi": fixed_chi_pi,
             "fixed_C_beta": fixed_C_beta
         }
         
@@ -261,8 +255,9 @@ def run_optuna_optimization(cfg):
         return val_loss
 
     # Execution
-    total_cores = os.cpu_count() or 1
-    n_jobs = max(1, total_cores // 2)
+    # total_cores = os.cpu_count() or 1
+    # n_jobs = max(1, total_cores // 2)
+    n_jobs = 1
     print(f"Running Optuna with {n_jobs} jobs (Storage: {storage_url})")
 
     study = optuna.create_study(
@@ -295,7 +290,6 @@ def run_optuna_optimization(cfg):
         "input_dim": default_input_dim,
         "hidden_sizes": hidden_sizes,
         "activation": act_name,
-        "fixed_chi_pi": fixed_chi_pi,
         "fixed_C_beta": fixed_C_beta
     }
     

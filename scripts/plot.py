@@ -47,7 +47,6 @@ def main():
         else:
             print("Warning: Config file not found. Using default config (Running may fail).")
             model_config = cfg["default"]["nn"].copy()
-            model_config["fixed_chi_pi"] = cfg["nuclei"]["fixed_chi_pi"]
             model_config["fixed_C_beta"] = cfg["nuclei"]["fixed_C_beta"]
     else:
         print("Mode: Visualizing NORMAL training result")
@@ -56,7 +55,6 @@ def main():
         
         # 通常時はデフォルト設定を使用
         model_config = cfg["default"]["nn"].copy()
-        model_config["fixed_chi_pi"] = cfg["nuclei"]["fixed_chi_pi"]
         model_config["fixed_C_beta"] = cfg["nuclei"]["fixed_C_beta"]
 
     analysis_file = output_dir / f"analysis_{mode_name}.csv"
@@ -121,6 +119,7 @@ def main():
     # 5. 推論 & プロットループ
     # ==========================================
     n_list = []
+    z_list = [] # Zのリストを追加
     params_history = {"epsilon": [], "kappa": [], "chi_nu": [], "chi_pi": [], "C_beta": []}
     pes_data_list = [] # まとめてプロット用
     
@@ -137,10 +136,11 @@ def main():
             preds = decoder(params, n_pi, n_nu)
             
             # 値取り出し
-            p = params.cpu().numpy()[0] # [eps, kap, chi_nu, chi_pi, C_beta]
+            p = params.cpu().numpy()[0] # [eps, kap, chi_pi, chi_nu, C_beta]
             
             # Nを取得 (shuffle=Falseなのでindexでアクセス可能)
             n_val = dataset.data[i]["N"]
+            z_val = dataset.data[i]["Z"]
 
             if allowed_n_values and n_val not in allowed_n_values:
                 continue
@@ -151,6 +151,7 @@ def main():
                 pred_y = preds[0].cpu().numpy()
                 
                 pes_data_list.append({
+                    "Z": z_val,
                     "N": n_val,
                     "target": target_y,
                     "pred": pred_y
@@ -158,68 +159,101 @@ def main():
 
             # --- パラメータ収集 ---
             n_list.append(n_val)
+            z_list.append(z_val) # Zを保存
             params_history["epsilon"].append(p[0])
             params_history["kappa"].append(p[1])
-            params_history["chi_nu"].append(p[2])
-            params_history["chi_pi"].append(p[3])
+            params_history["chi_pi"].append(p[2])
+            params_history["chi_nu"].append(p[3])
             params_history["C_beta"].append(p[4])
 
-    # --- PESまとめてプロット ---
-    if args.type in ["pes", "all"] and pes_data_list:
-        vis.plot_all_pes(
-            dataset.beta_grid, 
-            pes_data_list, 
-            filename=f"{prefix}PES_all.png"
-        )
-    elif args.type in ["pes", "all"]:
-        print("Warning: No nuclei available for PES plot.")
-
-    # --- パラメータ推移プロット ---
-    if args.type in ["params", "all"] and n_list:
-        vis.plot_parameters_evolution(
-            n_list, params_history, 
-            filename=f"{prefix}params_trend.png"
-        )
-    elif args.type in ["params", "all"]:
-        print("Warning: No nuclei available for parameter plot.")
-
     # ==========================================
-    # 6. Spectra & Ratio (from Analysis results)
+    # 6. プロット (Zごとにフォルダ分け)
     # ==========================================
+    
+    # 解析データのロード (Spectra/Ratio用)
+    pred_df_all = None
+    expt_df_all = None
+    
     if args.type in ["spectra", "ratio", "all"]:
-        # Load Analysis Results
         expt_file = cfg["dirs"]["raw_dir"] / "expt.csv"
-        n_min = cfg["nuclei"].get("n_min")
-        n_max = cfg["nuclei"].get("n_max")
         
+        # analysis_dfが未ロードならロード
         if analysis_df is None and analysis_file.exists():
             try:
                 analysis_df = pd.read_csv(analysis_file)
             except Exception as exc:
                 print(f"Warning: Failed to read {analysis_file}: {exc}")
                 analysis_df = None
-
-        if analysis_df is not None and expt_file.exists():
-            print(f"Plotting Spectra & Ratio from {analysis_file} ...")
-            pred_df = analysis_df.copy()
-            expt_df = pd.read_csv(expt_file)
-
-            if "N" in pred_df.columns and n_min is not None and n_max is not None:
-                pred_df = pred_df[(pred_df["N"] >= n_min) & (pred_df["N"] <= n_max)]
-            if "N" in expt_df.columns and n_min is not None and n_max is not None:
-                expt_df = expt_df[(expt_df["N"] >= n_min) & (expt_df["N"] <= n_max)]
-            
-            if args.type in ["spectra", "all"]:
-                vis.plot_spectra(pred_df, expt_df, filename=f"{prefix}spectra.png")
-                
-            if args.type in ["ratio", "all"]:
-                vis.plot_ratio(pred_df, expt_df, filename=f"{prefix}ratio.png")
-        else:
-            if analysis_df is None:
-                print(f"Warning: Analysis file not available at {analysis_file}. Run analyze.py first.")
-            if not expt_file.exists():
-                print(f"Warning: Expt file not found at {expt_file}")
         
+        pred_df_all = analysis_df
+        
+        if expt_file.exists():
+            expt_df_all = pd.read_csv(expt_file)
+        else:
+            print(f"Warning: Expt file not found at {expt_file}")
+
+    # Zのリストを取得
+    unique_zs = sorted(list(set(z_list)))
+    # もしPES/Paramsのデータがない場合でも、Analysis結果があればそこからZを取得
+    if not unique_zs and pred_df_all is not None and "Z" in pred_df_all.columns:
+        unique_zs = sorted(pred_df_all["Z"].unique())
+
+    print(f"Generating plots for Z: {unique_zs}")
+
+    for z in unique_zs:
+        print(f"--- Plotting for Z={z} ---")
+        z_plot_dir = plot_dir / str(z)
+        z_vis = IBM2Visualizer(save_dir=z_plot_dir)
+        
+        # 1. PES
+        z_pes_data = [d for d in pes_data_list if d.get("Z") == z]
+        if args.type in ["pes", "all"] and z_pes_data:
+            z_vis.plot_all_pes(
+                dataset.beta_grid, 
+                z_pes_data, 
+                filename=f"{prefix}PES_all.png"
+            )
+
+        # 2. Params
+        z_indices = [i for i, val in enumerate(z_list) if val == z]
+        if args.type in ["params", "all"] and z_indices:
+            z_n_list = [n_list[i] for i in z_indices]
+            z_z_list_sub = [z_list[i] for i in z_indices]
+            z_params = {k: [v[i] for i in z_indices] for k, v in params_history.items()}
+            
+            z_vis.plot_parameters_evolution(
+                z_n_list, z_z_list_sub, z_params, 
+                filename=f"{prefix}params_trend.png"
+            )
+
+        # 3. Spectra & Ratio
+        if args.type in ["spectra", "ratio", "all"]:
+            # Filter Pred
+            z_pred_df = None
+            if pred_df_all is not None and "Z" in pred_df_all.columns:
+                z_pred_df = pred_df_all[pred_df_all["Z"] == z]
+            
+            # Filter Expt
+            z_expt_df = pd.DataFrame()
+            if expt_df_all is not None:
+                if "Z" in expt_df_all.columns:
+                    z_expt_df = expt_df_all[expt_df_all["Z"] == z]
+                else:
+                    # Zカラムがない場合はフィルタリングできないため、そのまま使うか、警告を出す
+                    # ここでは安全のため空にするか、あるいは全データを使うか...
+                    # ユーザーの意図としてはZごとに分けたいはずなので、Zカラムがないと困る。
+                    # とりあえずそのまま渡してみる（もしNが被ってなければ動く）
+                    # しかし、他のZのデータが混ざるとおかしくなる。
+                    # ここでは「Zカラムがあればフィルタ、なければ空」とするのが安全。
+                    pass
+
+            if z_pred_df is not None and not z_pred_df.empty:
+                if args.type in ["spectra", "all"]:
+                    z_vis.plot_spectra(z_pred_df, z_expt_df, filename=f"{prefix}spectra.png")
+                
+                if args.type in ["ratio", "all"]:
+                    z_vis.plot_ratio(z_pred_df, z_expt_df, filename=f"{prefix}ratio.png")
+
     print("All plots generated.")
 
 if __name__ == "__main__":

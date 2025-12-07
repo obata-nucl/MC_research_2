@@ -124,9 +124,10 @@ def main():
         n_nu = item["n_nu"]
         mass_num = z + n
         
-        # モデル入力作成 [n_nu, P]
+        # モデル入力作成 [n_pi, n_nu, P]
         # dataset.pyの実装に合わせて入力を作成
-        norm_n_nu = float(n_nu) / 30.0
+        norm_n_pi = float(n_pi) / 20.0
+        norm_n_nu = float(n_nu) / 20.0
         
         if (n_pi + n_nu) == 0:
             P = 0.0
@@ -134,16 +135,16 @@ def main():
             P = (n_pi * n_nu) / (n_pi + n_nu)
         norm_P = P / 10.0
         
-        inp = torch.tensor([[norm_n_nu, norm_P]], device=device)
+        inp = torch.tensor([[norm_n_pi, norm_n_nu, norm_P]], device=device)
         
         with torch.no_grad():
-            # Output: [epsilon, kappa, chi_nu, chi_pi, C_beta]
+            # Output: [epsilon, kappa, chi_pi, chi_nu, C_beta]
             preds = model(inp).cpu().numpy()[0]
         
         epsilon = preds[0]
         kappa = preds[1]
-        chi_nu = preds[2]
-        chi_pi = preds[3]
+        chi_pi = preds[2]
+        chi_nu = preds[3]
         c_beta = preds[4]
         
         # NPBOS実行
@@ -157,8 +158,8 @@ def main():
             "n_nu": n_nu,
             "epsilon": epsilon,
             "kappa": kappa,
-            "chi_nu": chi_nu,
             "chi_pi": chi_pi,
+            "chi_nu": chi_nu,
             "C_beta": c_beta
         }
         

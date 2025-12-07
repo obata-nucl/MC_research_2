@@ -38,12 +38,20 @@ class IBM2Visualizer:
         for ax in axes[:, 0]:
             ax.set_ylabel("Energy [MeV]", fontsize=14)
 
-        # ソート (Nの昇順)
-        pes_data_list.sort(key=lambda x: x["N"])
+        # ソート (Z, Nの昇順)
+        pes_data_list.sort(key=lambda x: (x.get("Z", 0), x["N"]))
+        
+        # 元素記号のマッピング
+        element_symbols = {
+            60: "Nd",
+            62: "Sm",
+            64: "Gd"
+        }
         
         for i, data in enumerate(pes_data_list):
             ax = axes.ravel()[i]
             n_val = data["N"]
+            z_val = data.get("Z", 62) # デフォルトはSm (62)
             target_E = data["target"]
             pred_E = data["pred"]
             
@@ -57,9 +65,10 @@ class IBM2Visualizer:
             idx_min_calc = np.argmin(pred_E)
             ax.plot(beta[idx_min_calc], pred_E[idx_min_calc], 'ro', markersize=6)
             
-            # タイトル (Sm固定)
-            mass_number = 62 + n_val
-            ax.set_title(rf"$^{{{mass_number}}}\mathrm{{Sm}}$", fontsize=18)
+            # タイトル (Zに応じて変更)
+            mass_number = z_val + n_val
+            symbol = element_symbols.get(z_val, "X")
+            ax.set_title(rf"$^{{{mass_number}}}\mathrm{{{symbol}}}$", fontsize=18)
             
             ax.tick_params(axis="both", which="major", labelsize=12)
             if i == 0: # 凡例は最初だけ
@@ -75,17 +84,26 @@ class IBM2Visualizer:
         plt.close()
         print(f"Saved: {save_path}")
 
-    def plot_parameters_evolution(self, n_list, params_dict, filename="params.png"):
+    def plot_parameters_evolution(self, n_list, z_list, params_dict, filename="params.png"):
         """
-        中性子数Nに対する各パラメータの変化をプロット
-        params_dict: {"epsilon": [v1, v2...], "kappa": [...], ...}
+        中性子数Nに対する各パラメータの変化をプロット (Zごとに色分け)
         """
         fig, axes = plt.subplots(2, 3, figsize=(15, 8))
         axes = axes.flatten()
         
         keys = ["epsilon", "kappa", "chi_pi", "chi_nu", "C_beta"]
         keys_labels = [r"$\epsilon$", r"$\kappa$", r"$\chi_{\pi}$", r"$\chi_{\nu}$", r"$C_{\beta}$"]
-        colors = ["blue", "green", "orange", "red", "purple"]
+        
+        # Zごとの色設定
+        unique_z = sorted(list(set(z_list)))
+        # Zが少ない場合は固定色、多い場合はカラーマップ
+        if len(unique_z) <= 3:
+            colors = ["blue", "red", "green"]
+        else:
+            colors = plt.cm.viridis(np.linspace(0, 1, len(unique_z)))
+            
+        element_symbols = {60: "Nd", 62: "Sm", 64: "Gd"}
+
         param_limits = {
             "epsilon": (0.0, 3.0),
             "kappa": (-1.0, 0.0),
@@ -93,10 +111,9 @@ class IBM2Visualizer:
             "C_beta": (1.0, 6.0)
         }
 
-        # n_listに基づいてソート順を決定
-        sorted_indices = np.argsort(n_list)
-        sorted_n = np.array(n_list)[sorted_indices]
-        
+        n_arr = np.array(n_list)
+        z_arr = np.array(z_list)
+
         for i, key in enumerate(keys):
             if key not in params_dict:
                 axes[i].axis("off") # データがない場合は枠を消す
@@ -104,9 +121,25 @@ class IBM2Visualizer:
             
             ax = axes[i]
             vals = np.array(params_dict[key])
-            sorted_vals = vals[sorted_indices]
             
-            ax.plot(sorted_n, sorted_vals, "o-", color=colors[i], label=key)
+            # Zごとにプロット
+            for j, z in enumerate(unique_z):
+                mask = (z_arr == z)
+                if not np.any(mask):
+                    continue
+                    
+                z_n = n_arr[mask]
+                z_vals = vals[mask]
+                
+                # Nでソート
+                sort_idx = np.argsort(z_n)
+                sorted_n = z_n[sort_idx]
+                sorted_vals = z_vals[sort_idx]
+                
+                symbol = element_symbols.get(z, f"Z={z}")
+                color = colors[j % len(colors)]
+                ax.plot(sorted_n, sorted_vals, "o-", color=color, label=f"{symbol}")
+
             ax.set_xlabel("Neutron Number N")
             ax.set_ylabel(keys_labels[i])
             ax.set_title(f"Evolution of {keys_labels[i]}")
@@ -114,6 +147,9 @@ class IBM2Visualizer:
             ax.xaxis.set_major_locator(MaxNLocator(integer=True))
             if key in param_limits:
                 ax.set_ylim(*param_limits[key])
+            
+            # 凡例を表示
+            ax.legend(fontsize=10)
         
         if len(keys) < 6:
             for j in range(len(keys), 6):
