@@ -127,7 +127,7 @@ def main():
     print("Generating PES & Parameter plots...")
     
     with torch.no_grad():
-        for inputs, targets, n_pi, n_nu in loader:
+        for i, (inputs, targets, n_pi, n_nu) in enumerate(loader):
             inputs = inputs.to(device)
             n_pi = n_pi.to(device)
             n_nu = n_nu.to(device)
@@ -138,9 +138,9 @@ def main():
             
             # 値取り出し
             p = params.cpu().numpy()[0] # [eps, kap, chi_nu, chi_pi, C_beta]
-            # inputs: [norm_N, norm_n_nu, norm_N_sq]
-            # Nを復元する: norm_N = N / 126.0 -> N = norm_N * 126.0
-            n_val = int(round(inputs[0, 0].item() * 126.0))
+            
+            # Nを取得 (shuffle=Falseなのでindexでアクセス可能)
+            n_val = dataset.data[i]["N"]
 
             if allowed_n_values and n_val not in allowed_n_values:
                 continue
