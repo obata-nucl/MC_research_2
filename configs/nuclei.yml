@@ -2,7 +2,7 @@ z_min: 60
 z_max: 64
 z_step: 2
 n_min: 86
-n_max: 96
+n_max: 100
 n_step: 2
 magic_numbers: [2, 8, 20, 28, 50, 82, 126]
 fixed_C_beta: 2.5
