@@ -366,17 +366,15 @@ def run_optuna_optimization(cfg):
     history_df.to_csv(history_path, index=False)
     
     # Save Config (YAML)
-    # Optunaで最適化されたパラメータ(モデル構造 + 学習ハイパラ)のみ保存
-    final_config = {
-        "model": model_config,
-        "training": {
-            "lr": lr_init,
-            "batch_size": batch_size
-        }
-    }
+    # Optunaで最適化されたパラメータを保存
+    # analyze.pyが読み込めるようにフラットな構造にする
+    save_config = model_config.copy()
+    save_config["lr"] = lr_init
+    save_config["batch_size"] = batch_size
+
     config_save_path = model_save_dir / "optuna_best_config.yaml"
     with open(config_save_path, 'w') as f:
-        yaml.dump(final_config, f, sort_keys=False)
+        yaml.dump(save_config, f, sort_keys=False)
     
     print(f"Best model saved to {save_path}")
     print(f"Config saved to {config_save_path}")
