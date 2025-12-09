@@ -106,11 +106,7 @@ def run_normal_training(cfg):
 
     # Model
     model_config = nn_conf.copy()
-    # fixed_C_beta の取得
-    if "nuclei" in cfg["nuclei"]:
-        fixed_C_beta = cfg["nuclei"]["nuclei"]["fixed_C_beta"]
-    else:
-        fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
+    fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
     model_config["fixed_C_beta"] = fixed_C_beta
     
     model = IBM2FlexibleNet(model_config).to(device)
@@ -118,7 +114,11 @@ def run_normal_training(cfg):
     
     # Optimizer & Loss
     optimizer = optim.Adam(model.parameters(), lr=train_conf["lr"]["initial"])
-    criterion = FlexiblePESLoss(loss_type="normalized", weight_type="reciprocal", alpha=5.0)
+    criterion = FlexiblePESLoss(
+        loss_type=train_conf["loss_type"],
+        weight_type=train_conf["loss_weight"],
+        alpha=train_conf["loss_alpha"]
+    )
     
     scheduler = None
     if train_conf["lr"].get("scheduler") == "StepLR":
@@ -200,12 +200,9 @@ def run_optuna_optimization(cfg):
     
     full_dataset = IBM2Dataset(cfg)
     beta_grid = full_dataset.beta_grid
-    
-    if "nuclei" in cfg["nuclei"]:
-        fixed_C_beta = cfg["nuclei"]["nuclei"]["fixed_C_beta"]
-    else:
-        fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
-    
+
+    fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
+
     # ★修正: Configからinput_dimを取得 (デフォルト値)
     default_input_dim = cfg["default"]["nn"]["input_dim"]
     
@@ -240,7 +237,11 @@ def run_optuna_optimization(cfg):
         model = IBM2FlexibleNet(model_config).to(device)
         decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr_init)
-        criterion = FlexiblePESLoss(loss_type="normalized", weight_type="reciprocal", alpha=5.0)
+        criterion = FlexiblePESLoss(
+            loss_type=cfg["default"]["training"]["loss_type"],
+            weight_type=cfg["default"]["training"]["loss_weight"],
+            alpha=cfg["default"]["training"]["loss_alpha"]
+        )
         
         n_epochs = 50
         
@@ -303,7 +304,11 @@ def run_optuna_optimization(cfg):
     model = IBM2FlexibleNet(model_config).to(device)
     decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr_init)
-    criterion = FlexiblePESLoss(loss_type="normalized", weight_type="reciprocal", alpha=5.0)
+    criterion = FlexiblePESLoss(
+            loss_type=cfg["default"]["training"]["loss_type"],
+            weight_type=cfg["default"]["training"]["loss_weight"],
+            alpha=cfg["default"]["training"]["loss_alpha"]
+        )
     
     # Scheduler
     train_conf = cfg["default"]["training"]

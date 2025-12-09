@@ -233,6 +233,15 @@ def main():
                 try:
                     z_expt_df = pd.read_csv(z_expt_file)
                     print(f"Loaded experimental data for Z={z} from {z_expt_file}")
+                    
+                    # Filter by N range from config
+                    n_min = cfg["nuclei"].get("n_min")
+                    n_max = cfg["nuclei"].get("n_max")
+                    
+                    if "N" in z_expt_df.columns and n_min is not None and n_max is not None:
+                        z_expt_df = z_expt_df[(z_expt_df["N"] >= n_min) & (z_expt_df["N"] <= n_max)]
+                        print(f"Filtered experimental data: N in [{n_min}, {n_max}] -> {len(z_expt_df)} records")
+                        
                 except Exception as e:
                     print(f"Warning: Failed to load {z_expt_file}: {e}")
             else:
