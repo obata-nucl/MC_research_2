@@ -172,11 +172,8 @@ def main():
     
     # 解析データのロード (Spectra/Ratio用)
     pred_df_all = None
-    expt_df_all = None
     
     if args.type in ["spectra", "ratio", "all"]:
-        expt_file = cfg["dirs"]["raw_dir"] / "expt.csv"
-        
         # analysis_dfが未ロードならロード
         if analysis_df is None and analysis_file.exists():
             try:
@@ -186,11 +183,6 @@ def main():
                 analysis_df = None
         
         pred_df_all = analysis_df
-        
-        if expt_file.exists():
-            expt_df_all = pd.read_csv(expt_file)
-        else:
-            print(f"Warning: Expt file not found at {expt_file}")
 
     # Zのリストを取得
     unique_zs = sorted(list(set(z_list)))
@@ -233,19 +225,18 @@ def main():
             if pred_df_all is not None and "Z" in pred_df_all.columns:
                 z_pred_df = pred_df_all[pred_df_all["Z"] == z]
             
-            # Filter Expt
+            # Load Expt for this Z
+            z_expt_file = cfg["dirs"]["raw_dir"] / str(z) / "expt.csv"
             z_expt_df = pd.DataFrame()
-            if expt_df_all is not None:
-                if "Z" in expt_df_all.columns:
-                    z_expt_df = expt_df_all[expt_df_all["Z"] == z]
-                else:
-                    # Zカラムがない場合はフィルタリングできないため、そのまま使うか、警告を出す
-                    # ここでは安全のため空にするか、あるいは全データを使うか...
-                    # ユーザーの意図としてはZごとに分けたいはずなので、Zカラムがないと困る。
-                    # とりあえずそのまま渡してみる（もしNが被ってなければ動く）
-                    # しかし、他のZのデータが混ざるとおかしくなる。
-                    # ここでは「Zカラムがあればフィルタ、なければ空」とするのが安全。
-                    pass
+            
+            if z_expt_file.exists():
+                try:
+                    z_expt_df = pd.read_csv(z_expt_file)
+                    print(f"Loaded experimental data for Z={z} from {z_expt_file}")
+                except Exception as e:
+                    print(f"Warning: Failed to load {z_expt_file}: {e}")
+            else:
+                print(f"Warning: Experimental data not found for Z={z} at {z_expt_file}")
 
             if z_pred_df is not None and not z_pred_df.empty:
                 if args.type in ["spectra", "all"]:

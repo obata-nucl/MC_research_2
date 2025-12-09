@@ -15,7 +15,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 
 from src.dataset import IBM2Dataset
-from src.losses import WeightedMSELoss
+from src.losses import FlexiblePESLoss
 from src.model import IBM2FlexibleNet, IBM2PESDecoder
 from src.utils import load_config, set_seed
 
@@ -118,7 +118,7 @@ def run_normal_training(cfg):
     
     # Optimizer & Loss
     optimizer = optim.Adam(model.parameters(), lr=train_conf["lr"]["initial"])
-    criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.0)
+    criterion = FlexiblePESLoss(loss_type="normalized", weight_type="reciprocal", alpha=5.0)
     
     scheduler = None
     if train_conf["lr"].get("scheduler") == "StepLR":
@@ -240,7 +240,7 @@ def run_optuna_optimization(cfg):
         model = IBM2FlexibleNet(model_config).to(device)
         decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr_init)
-        criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.0)
+        criterion = FlexiblePESLoss(loss_type="normalized", weight_type="reciprocal", alpha=5.0)
         
         n_epochs = 50
         
@@ -303,7 +303,7 @@ def run_optuna_optimization(cfg):
     model = IBM2FlexibleNet(model_config).to(device)
     decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr_init)
-    criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.0)
+    criterion = FlexiblePESLoss(loss_type="normalized", weight_type="reciprocal", alpha=5.0)
     
     # Scheduler
     train_conf = cfg["default"]["training"]
