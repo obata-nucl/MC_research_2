@@ -1,5 +1,5 @@
-z_min: 62
-z_max: 62
+z_min: 60
+z_max: 64
 z_step: 2
 n_min: 86
 n_max: 100
