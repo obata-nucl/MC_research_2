@@ -6,11 +6,11 @@
 default:
   nn:
     input_dim: 3            # [n_pi, n_nu, P]
-    hidden_sizes: [64, 32, 64]  # デフォルトは64ノードの2層
+    hidden_sizes: [64, 64]  # デフォルトは64ノードの2層
     activation: "ReLU"      # ReLU, Tanh, SiLU etc.
   
   training:
-    batch_size: 32
+    batch_size: 2
     epochs: 300
     lr:
       initial: 0.001
@@ -18,7 +18,9 @@ default:
       patience: 50
       factor: 0.5
     optimizer: "Adam"
-    loss_function: "MSE"
+    loss_type: "absolute"
+    loss_weight: "reciprocal"
+    loss_alpha: 0.1
     val_split: 0.1
     val_n: [90]
     early_stopping:
@@ -39,11 +41,11 @@ optuna:
     hidden_layers_min: 2
     hidden_layers_max: 4
 
-    node_candidates: [16, 32, 64]
+    node_candidates: [4, 8, 16, 32, 64]
 
     activation_list: ["ReLU", "Tanh", "SiLU"]
 
-    batch_size_list: [16, 32, 64]
+    batch_size_list: [1, 2]
 
     lr_initial_min: 1e-4
     lr_initial_max: 1e-2
