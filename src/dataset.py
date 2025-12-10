@@ -68,7 +68,7 @@ class IBM2Dataset(Dataset):
         
         for z, n in itertools.product(self.z_range, self.n_range):
             filename = f"{n}.csv"
-            file_path = self.raw_dir / filename
+            file_path = self.raw_dir / str(z) / filename
             
             if not file_path.exists():
                 raise FileNotFoundError(f"file not found : {file_path}")
@@ -125,10 +125,13 @@ class IBM2Dataset(Dataset):
         raw_n_pi = float(item["n_pi"])
 
         # --- 特徴量の正規化と作成 ---
-        # 1. 中性子ボソン数 n_nu (最大数より少し大きい30で正規化)
-        norm_n_nu = raw_n_nu / 30.0
+        # 1. 中性子ボソン数 n_nu (最大数より少し大きい20で正規化)
+        norm_n_nu = raw_n_nu / 20.0
+
+        # 2. 陽子ボソン数 n_pi (最大数より少し大きい20で正規化)
+        norm_n_pi = raw_n_pi / 20.0
         
-        # 2. Casten factor P = (n_pi * n_nu) / (n_pi + n_nu)
+        # 3. Casten factor P = (n_pi * n_nu) / (n_pi + n_nu)
         if (raw_n_pi + raw_n_nu) == 0:
             P = 0.0
         else:
@@ -137,8 +140,8 @@ class IBM2Dataset(Dataset):
         # Pの正規化 (最大値はおよそ10程度なので10で割る)
         norm_P = P / 10.0
         
-        # 入力データ: [n_nu, P]
-        inputs = torch.tensor([norm_n_nu, norm_P], dtype=torch.float32)
+        # 入力データ: [n_pi, n_nu, P]
+        inputs = torch.tensor([norm_n_pi, norm_n_nu, norm_P], dtype=torch.float32)
         
         # --- 教師データと物理量 ---
         target = torch.tensor(item["target_pes"], dtype=torch.float32)

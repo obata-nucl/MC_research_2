@@ -15,7 +15,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 
 from src.dataset import IBM2Dataset
-from src.losses import WeightedMSELoss
+from src.losses import FlexiblePESLoss
 from src.model import IBM2FlexibleNet, IBM2PESDecoder
 from src.utils import load_config, set_seed
 
@@ -106,14 +106,7 @@ def run_normal_training(cfg):
 
     # Model
     model_config = nn_conf.copy()
-    # fixed_chi_pi の取得
-    if "nuclei" in cfg["nuclei"]:
-        fixed_chi_pi = cfg["nuclei"]["nuclei"]["fixed_chi_pi"]
-        fixed_C_beta = cfg["nuclei"]["nuclei"]["fixed_C_beta"]
-    else:
-        fixed_chi_pi = cfg["nuclei"]["fixed_chi_pi"]
-        fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
-    model_config["fixed_chi_pi"] = fixed_chi_pi
+    fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
     model_config["fixed_C_beta"] = fixed_C_beta
     
     model = IBM2FlexibleNet(model_config).to(device)
@@ -121,7 +114,11 @@ def run_normal_training(cfg):
     
     # Optimizer & Loss
     optimizer = optim.Adam(model.parameters(), lr=train_conf["lr"]["initial"])
-    criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.0)
+    criterion = FlexiblePESLoss(
+        loss_type=train_conf["loss_type"],
+        weight_type=train_conf["loss_weight"],
+        alpha=train_conf["loss_alpha"]
+    )
     
     scheduler = None
     if train_conf["lr"].get("scheduler") == "StepLR":
@@ -203,14 +200,9 @@ def run_optuna_optimization(cfg):
     
     full_dataset = IBM2Dataset(cfg)
     beta_grid = full_dataset.beta_grid
-    
-    if "nuclei" in cfg["nuclei"]:
-        fixed_chi_pi = cfg["nuclei"]["nuclei"]["fixed_chi_pi"]
-        fixed_C_beta = cfg["nuclei"]["nuclei"]["fixed_C_beta"]
-    else:
-        fixed_chi_pi = cfg["nuclei"]["fixed_chi_pi"]
-        fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
-    
+
+    fixed_C_beta = cfg["nuclei"]["fixed_C_beta"]
+
     # ★修正: Configからinput_dimを取得 (デフォルト値)
     default_input_dim = cfg["default"]["nn"]["input_dim"]
     
@@ -239,14 +231,17 @@ def run_optuna_optimization(cfg):
             "input_dim": default_input_dim,
             "hidden_sizes": hidden_sizes,
             "activation": act_name,
-            "fixed_chi_pi": fixed_chi_pi,
             "fixed_C_beta": fixed_C_beta
         }
         
         model = IBM2FlexibleNet(model_config).to(device)
         decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr_init)
-        criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.0)
+        criterion = FlexiblePESLoss(
+            loss_type=cfg["default"]["training"]["loss_type"],
+            weight_type=cfg["default"]["training"]["loss_weight"],
+            alpha=cfg["default"]["training"]["loss_alpha"]
+        )
         
         n_epochs = 50
         
@@ -261,8 +256,9 @@ def run_optuna_optimization(cfg):
         return val_loss
 
     # Execution
-    total_cores = os.cpu_count() or 1
-    n_jobs = max(1, total_cores // 2)
+    # total_cores = os.cpu_count() or 1
+    # n_jobs = max(1, total_cores // 2)
+    n_jobs = 1
     print(f"Running Optuna with {n_jobs} jobs (Storage: {storage_url})")
 
     study = optuna.create_study(
@@ -295,7 +291,6 @@ def run_optuna_optimization(cfg):
         "input_dim": default_input_dim,
         "hidden_sizes": hidden_sizes,
         "activation": act_name,
-        "fixed_chi_pi": fixed_chi_pi,
         "fixed_C_beta": fixed_C_beta
     }
     
@@ -309,7 +304,11 @@ def run_optuna_optimization(cfg):
     model = IBM2FlexibleNet(model_config).to(device)
     decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr_init)
-    criterion = WeightedMSELoss(weight_type="reciprocal", alpha=0.0)
+    criterion = FlexiblePESLoss(
+            loss_type=cfg["default"]["training"]["loss_type"],
+            weight_type=cfg["default"]["training"]["loss_weight"],
+            alpha=cfg["default"]["training"]["loss_alpha"]
+        )
     
     # Scheduler
     train_conf = cfg["default"]["training"]
@@ -367,9 +366,15 @@ def run_optuna_optimization(cfg):
     history_df.to_csv(history_path, index=False)
     
     # Save Config (YAML)
+    # Optunaで最適化されたパラメータを保存
+    # analyze.pyが読み込めるようにフラットな構造にする
+    save_config = model_config.copy()
+    save_config["lr"] = lr_init
+    save_config["batch_size"] = batch_size
+
     config_save_path = model_save_dir / "optuna_best_config.yaml"
     with open(config_save_path, 'w') as f:
-        yaml.dump(model_config, f, sort_keys=False)
+        yaml.dump(save_config, f, sort_keys=False)
     
     print(f"Best model saved to {save_path}")
     print(f"Config saved to {config_save_path}")
