@@ -91,11 +91,9 @@ class IBM2FlexibleNet(nn.Module):
 
         # (A) chi_nu (中性子ブランチのみに依存)
         chi_nu = self.head_chi_nu(h_nu)
-        chi_nu = - 1.5 * torch.sigmoid(chi_nu)
         
         # (B) chi_pi (陽子ブランチのみに依存)
         chi_pi = self.head_chi_pi(h_pi)
-        chi_pi = - 1.5 * torch.sigmoid(chi_pi)
         
         # (C) Hamiltonian parameters (相互作用)
         # 特徴量の結合: [h_nu, h_pi, P]
@@ -105,11 +103,13 @@ class IBM2FlexibleNet(nn.Module):
         epsilon = hamiltonian[:, 0:1]                   # [batch_size, 1]
         kappa   = hamiltonian[:, 1:2]                   # [batch_size, 1]
         
-        # Scale parameter
-        C_beta = self.fixed_C_beta.expand_as(epsilon) # [batch_size, 1]
-
+        # パラメータの拘束条件
         epsilon = self.softplus(epsilon)
         kappa   = - self.softplus(kappa)
+        chi_nu = - self.softplus(chi_nu)
+        chi_pi = - self.softplus(chi_pi)
+
+        C_beta = self.fixed_C_beta.expand_as(epsilon) # [batch_size, 1]
         
         return torch.cat([epsilon, kappa, chi_pi, chi_nu, C_beta], dim=1)  # [batch_size, 5]
     
