@@ -7,6 +7,6 @@ n_step: 2
 magic_numbers: [2, 8, 20, 28, 50, 82, 126]
 fixed_C_beta: 2.5
 
-beta_min: -0.45
-beta_max: 0.60
+beta_min: -0.40
+beta_max: 0.50
 beta_step: 0.05
