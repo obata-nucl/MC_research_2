@@ -14,7 +14,7 @@ cd "$NPBOS_DIR"
  &N  NCUT=100,   IEX =1,
      LAUTO = 0, 2, 4, 6,
      NEIGA = 2, 1, 1, 1,
-     NDUPTA= 8, 8, 8, 8, 8, 8, 8,
+     NDUPTA= 15, 15, 15, 15, 15, 15, 15,
      IWCF= 2,  NPSTW= 0,
  &END
 $MASS_NUM Sm

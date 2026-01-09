@@ -105,7 +105,7 @@ class IBM2Visualizer:
         element_symbols = {60: "Nd", 62: "Sm", 64: "Gd"}
 
         param_limits = {
-            "epsilon": (0.0, 3.0),
+            "epsilon": (0.0, 3.5),
             "kappa": (-1.0, 0.0),
             "chi_nu": (-1.5, 0.0),
             "C_beta": (1.0, 6.0)
@@ -237,13 +237,37 @@ class IBM2Visualizer:
             a.tick_params(labelsize=12)
             a.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-        ax[1].set_ylim(0.0, 3.0)
+        # Calculate max Y for shared axis
+        max_y = 2.0
+        for df in [pred_df, expt_df]:
+            for level in levels:
+                col = self._resolve_column(df, level_aliases[level])
+                if col is not None and col in df.columns:
+                    val_max = df[col].max()
+                    if not np.isnan(val_max) and val_max > max_y:
+                        max_y = val_max
+        
+        limit_y = max_y * 1.1
+
+        ax[1].set_ylim(0.0, 2.0)
             
         plt.tight_layout()
         save_path = self.save_dir / filename
         plt.savefig(save_path)
-        plt.close()
         print(f"Saved: {save_path}")
+
+        # Additional plot: Shared Y-axis (aligned)
+        ax[0].set_ylim(0.0, limit_y)
+        ax[1].set_ylim(0.0, limit_y)
+        
+        stem = Path(filename).stem
+        suffix = Path(filename).suffix
+        new_filename = f"{stem}_common_scale{suffix}"
+        save_path_fixed = self.save_dir / new_filename
+        
+        plt.savefig(save_path_fixed)
+        plt.close()
+        print(f"Saved: {save_path_fixed}")
 
     def plot_ratio(self, pred_df, expt_df, filename="ratio.png"):
         """
