@@ -49,15 +49,24 @@ class FlexiblePESLoss(nn.Module):
         # --- 3. 重みの計算 ---
         # 重みは常に「正解データ(input_target)」の安定度に基づいて決める
         
+        # 重み計算用の基準値を作成 (常に最小値を0として扱う)
+        if self.loss_type == "normalized":
+            # normalizedの場合、すでに0~1で最小値は0になっている
+            weight_basis = input_target
+        else:
+            # absoluteの場合: 生の値なので、バッチごとの最小値を引いて「最安定点からの距離」にする
+            # これにより、エネルギーが深くても(負に大きくても)最安定点なら重みが大きくなる
+            min_val, _ = torch.min(input_target, dim=1, keepdim=True)
+            weight_basis = input_target - min_val
+
         if self.weight_type == "reciprocal":
             # 逆数型: 谷底付近を重視
-            # normalizedの場合: targetは0.0~1.0 -> alphaは大きめ(5.0など)推奨
-            # absoluteの場合: targetは-10.0~5.0とかなので絶対値をとる
-            weights = 1.0 / (self.alpha * torch.abs(input_target) + 1.0)
+            # weight_basisは常に0以上 (0が最安定) なので、そのまま使える
+            weights = 1.0 / (self.alpha * weight_basis + 1.0)
             
         elif self.weight_type == "exp":
             # 指数型
-            weights = torch.exp(-self.alpha * torch.abs(input_target))
+            weights = torch.exp(-self.alpha * weight_basis)
             
         else:
             # 重みなし
