@@ -31,7 +31,7 @@ def run_npbos(script_path, npbos_dir, mass_num, n_nu, params):
     
     try:
         # タイムアウトを設定して実行
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         
         if result.returncode != 0:
             print(f"Error running npbos for A={mass_num}: {result.stderr}")

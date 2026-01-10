@@ -11,21 +11,21 @@ default:
   
   training:
     batch_size: 2
-    epochs: 300
+    epochs: 500
     lr:
-      initial: 0.001
+      initial: 1e-3
       scheduler: "StepLR"
-      patience: 50
+      patience: 20
       factor: 0.5
     optimizer: "Adam"
-    loss_type: "absolute"
+    loss_type: "absolute"  # "absolute" or "normalized"
     loss_weight: "reciprocal"
     loss_alpha: 0.1
     val_split: 0.1
     val_n: [90]
     early_stopping:
       enabled: true
-      patience: 20
+      patience: 50
 
 # ==============================
 # 2. Optuna探索用 (探索空間の定義)
