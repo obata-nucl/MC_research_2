@@ -3,10 +3,12 @@
 NPBOS_DIR=$1
 MASS_NUM=$2
 N_NU=$3
-eps=$4
-kappa=$5
-chi_pi=$6
-chi_n=$7
+N_PI=$4
+EPA=$5
+KAPPA=$6
+CHI_PI=$7
+CHI_NU=$8
+ELEMENT=$9
 
 cd "$NPBOS_DIR"
 
@@ -17,14 +19,14 @@ cd "$NPBOS_DIR"
      NDUPTA= 15, 15, 15, 15, 15, 15, 15,
      IWCF= 2,  NPSTW= 0,
  &END
-$MASS_NUM Sm
-   $N_NU   6
+$MASS_NUM $ELEMENT
+   $N_NU   $N_PI
     0
  &INPT
-      ED   = $eps,
-      RKAP = $kappa,
-      CHN  = $chi_n,
-      CHP  = $chi_pi,
+      ED   = $EPA,
+      RKAP = $KAPPA,
+      CHN  = $CHI_NU,
+      CHP  = $CHI_PI,
 
  &END
  
@@ -42,13 +44,13 @@ while read LINE; do
     if [ ${COL} -lt 9 ] ; then
         LINE_SUB=$(echo "$LINE" | cut -c7-16)
         if [ "$LINE_SUB" = "2  +  ( 1)" ] ; then
-            first_2=$(echo "$LINE" | cut -c23-28)
+            first_2=$(echo "$LINE" | cut -c22-28)
         elif [ "$LINE_SUB" = "4  +  ( 1)" ] ; then
-            first_4=$(echo "$LINE" | cut -c23-28)
+            first_4=$(echo "$LINE" | cut -c22-28)
         elif [ "$LINE_SUB" = "6  +  ( 1)" ] ; then
-            first_6=$(echo "$LINE" | cut -c23-28)
+            first_6=$(echo "$LINE" | cut -c22-28)
         elif [ "$LINE_SUB" = "0  +  ( 2)" ] ; then
-            second_0=$(echo "$LINE" | cut -c23-28)
+            second_0=$(echo "$LINE" | cut -c22-28)
         fi
     fi
 done < "$FILE"

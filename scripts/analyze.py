@@ -11,22 +11,24 @@ from src.model import IBM2FlexibleNet
 from src.dataset import IBM2Dataset
 from src.utils import load_config
 
-def run_npbos(script_path, npbos_dir, mass_num, n_nu, params):
+def run_npbos(script_path, npbos_dir, mass_num, n_nu, n_pi, params, element_sym):
     """
     src/analyze.sh を実行して npbos の計算結果を取得する
     params: [epsilon, kappa, chi_pi, chi_nu]
     """
-    # analyze.sh arguments: NPBOS_DIR MASS_NUM N_NU eps kappa chi_pi chi_n
+    # analyze.sh arguments: NPBOS_DIR MASS_NUM N_NU N_PI EPS KAPPA CHI_PI CHI_NU ELEMENT
     
     cmd = [
         "bash", str(script_path),
         str(npbos_dir),
         str(mass_num),
         str(n_nu),
+        str(n_pi),
         f"{params[0]:.4f}", # eps
         f"{params[1]:.4f}", # kappa
         f"{params[2]:.4f}", # chi_pi
-        f"{params[3]:.4f}"  # chi_nu
+        f"{params[3]:.4f}", # chi_nu
+        str(element_sym)    # element symbol (e.g. Nd)
     ]
     
     try:
@@ -147,9 +149,17 @@ def main():
         chi_nu = preds[3]
         c_beta = preds[4]
         
+        # 元素記号の取得
+        element_map = cfg["nuclei"].get("element_mapping", {})
+        # JSON/YAMLのキー型の違いを吸収（念のため）
+        element_sym = element_map.get(z)
+        if element_sym is None:
+            element_sym = element_map.get(str(z), "Sm")
+
         # NPBOS実行
-        # analyze.sh args: NPBOS_DIR MASS_NUM N_NU eps kappa chi_pi chi_n
-        energies = run_npbos(analyze_script, npbos_dir, mass_num, n_nu, [epsilon, kappa, chi_pi, chi_nu])
+        # analyze.sh args: NPBOS_DIR MASS_NUM N_NU N_PI eps kappa chi_pi chi_n ELEMENT
+        energies = run_npbos(analyze_script, npbos_dir, mass_num, n_nu, n_pi, 
+                             [epsilon, kappa, chi_pi, chi_nu], element_sym)
         
         row = {
             "Z": z,
