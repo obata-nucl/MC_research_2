@@ -5,6 +5,11 @@ n_min: 86
 n_max: 100
 n_step: 2
 magic_numbers: [2, 8, 20, 28, 50, 82, 126]
+element_mapping:
+  60: "Nd"
+  62: "Sm"
+  64: "Gd"
+
 fixed_C_beta: 3.0
 
 beta_min: -0.40
