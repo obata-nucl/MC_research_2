@@ -18,9 +18,7 @@ default:
       patience: 20
       factor: 0.5
     optimizer: "Adam"
-    loss_type: "normalized"  # "absolute" or "normalized"
-    loss_weight: "reciprocal"
-    loss_alpha: 0  # "auto" or float value
+    loss_type: "absolute"  # "absolute" or "normalized"
     val_split: 0.1
     val_n: [90]
     early_stopping:

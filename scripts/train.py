@@ -115,9 +115,7 @@ def run_normal_training(cfg):
     # Optimizer & Loss
     optimizer = optim.Adam(model.parameters(), lr=train_conf["lr"]["initial"])
     criterion = FlexiblePESLoss(
-        loss_type=train_conf["loss_type"],
-        weight_type=train_conf["loss_weight"],
-        alpha=train_conf["loss_alpha"]
+        loss_type=train_conf["loss_type"]
     )
     
     scheduler = None
@@ -238,9 +236,7 @@ def run_optuna_optimization(cfg):
         decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
         optimizer = optim.Adam(model.parameters(), lr=lr_init)
         criterion = FlexiblePESLoss(
-            loss_type=cfg["default"]["training"]["loss_type"],
-            weight_type=cfg["default"]["training"]["loss_weight"],
-            alpha=cfg["default"]["training"]["loss_alpha"]
+            loss_type=cfg["default"]["training"]["loss_type"]
         )
         
         n_epochs = 50
@@ -305,9 +301,7 @@ def run_optuna_optimization(cfg):
     decoder = IBM2PESDecoder(beta_f_grid=beta_grid).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr_init)
     criterion = FlexiblePESLoss(
-            loss_type=cfg["default"]["training"]["loss_type"],
-            weight_type=cfg["default"]["training"]["loss_weight"],
-            alpha=cfg["default"]["training"]["loss_alpha"]
+            loss_type=cfg["default"]["training"]["loss_type"]
         )
     
     # Scheduler
