@@ -105,7 +105,7 @@ class IBM2Visualizer:
         element_symbols = {60: "Nd", 62: "Sm", 64: "Gd"}
 
         param_limits = {
-            "epsilon": (0.0, 2.5),
+            "epsilon": (0.0, 3.5),
             "kappa": (-1.0, 0.0),
             "chi_nu": (-1.5, 0.0),
             "C_beta": (1.0, 6.0)

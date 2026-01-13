@@ -38,9 +38,7 @@ class FlexiblePESLoss(nn.Module):
             input_target = target
 
         # --- 2. 誤差の計算 ---
-        diff_sq = (input_pred - input_target) ** 2
-        
-        # 重みなしで平均をとる
-        loss = torch.mean(diff_sq)
+        diff = torch.abs(input_pred - input_target)
+        loss = torch.mean(diff)
         
         return loss
