@@ -183,7 +183,7 @@ python -m scripts.plot --type ratio
 - 出力ヘッド:
     - `head_chi_pi`: `h_pi` -> `chi_pi`
     - `head_chi_nu`: `h_nu` -> `chi_nu`
-    - `head_hamiltonian`: `[h_pi, h_nu, P]` -> `epsilon`, `kappa`
+    - `head_interaction`: `[h_pi, h_nu, P]` -> `epsilon`, `kappa`
     - `C_beta` は固定値として扱われます
 - デコーダ: `IBM2PESDecoder` （パラメータ、n_pi/n_nu, beta_grid から PES を計算）
 
@@ -193,14 +193,14 @@ flowchart LR
     IN_NU["Input: norm_n_nu (1)"]
     IN_P["Input: norm_P (1)"]
     
-    MLP_PI["Proton Branch (MLP)\nhidden: 64 -> 32 -> 64"]
-    MLP_NU["Neutron Branch (MLP)\nhidden: 64 -> 32 -> 64"]
+    MLP_PI["Proton Branch (MLP)\n hidden: 64 -> 32 -> 64"]
+    MLP_NU["Neutron Branch (MLP)\n hidden: 64 -> 32 -> 64"]
     
-    H_CHI_PI["head_chi_pi\n(out: 1 -> chi_pi)"]
-    H_CHI_NU["head_chi_nu\n(out: 1 -> chi_nu)"]
-    H_HAM["head_hamiltonian\n(out: 2 -> eps, kappa)"]
+    H_CHI_PI["head_chi_pi\n (out: 1 -> chi_pi)"]
+    H_CHI_NU["head_chi_nu\n (out: 1 -> chi_nu)"]
+    H_HAM["head_interaction\n (out: 2 -> eps, kappa)"]
     
-    FIX_C["fixed_C_beta\n(buffer)"]
+    FIX_C["fixed_C_beta\n (buffer)"]
     
     CONCAT["Concatenate -> Params\n(eps, kappa, chi_pi, chi_nu, C_beta)"]
     DEC["IBM2PESDecoder\n(beta_grid -> PES vector)"]
