@@ -193,17 +193,17 @@ flowchart LR
     IN_NU["Input: norm_n_nu (1)"]
     IN_P["Input: norm_P (1)"]
     
-    MLP_PI["Proton Branch (MLP)\n hidden: 64 -> 32 -> 64"]
-    MLP_NU["Neutron Branch (MLP)\n hidden: 64 -> 32 -> 64"]
+    MLP_PI["Proton Branch (MLP)<br/>hidden: 64 -> 32 -> 64"]
+    MLP_NU["Neutron Branch (MLP)<br/>hidden: 64 -> 32 -> 64"]
     
-    H_CHI_PI["head_chi_pi\n (out: 1 -> chi_pi)"]
-    H_CHI_NU["head_chi_nu\n (out: 1 -> chi_nu)"]
-    H_HAM["head_interaction\n (out: 2 -> eps, kappa)"]
+    H_CHI_PI["head_chi_pi<br/>(out: 1 -> chi_pi)"]
+    H_CHI_NU["head_chi_nu<br/>(out: 1 -> chi_nu)"]
+    H_HAM["head_interaction<br/>(out: 2 -> eps, kappa)"]
     
-    FIX_C["fixed_C_beta\n (buffer)"]
+    FIX_C["fixed_C_beta<br/>(buffer)"]
     
-    CONCAT["Concatenate -> Params\n(eps, kappa, chi_pi, chi_nu, C_beta)"]
-    DEC["IBM2PESDecoder\n(beta_grid -> PES vector)"]
+    CONCAT["Concatenate -> Params<br/>(eps, kappa, chi_pi, chi_nu, C_beta)"]
+    DEC["IBM2PESDecoder<br/>(beta_grid -> PES vector)"]
 
     IN_PI --> MLP_PI
     IN_NU --> MLP_NU
