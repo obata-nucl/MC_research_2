@@ -186,7 +186,7 @@ python -m scripts.plot --type ratio
 
 ```mermaid
 flowchart LR
-    IN["Input: norm_N (1)\n norm_n_pi(1)\n norm_n_nu (1)\n norm_P (1)"]
+    IN["Input: norm_N (1)\n norm_n_pi (1)\n norm_n_nu (1)\n norm_P (1)"]
     MLP["MLP\n input_dim=3\n hidden: 64 -> 32 -> 64\n act: ReLU"]
     H1["head_chi_nu\n (out: 1)"]
     H2["head_interaction\n (out: 3 -> eps,kappa,C_beta)"]
