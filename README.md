@@ -186,13 +186,13 @@ python -m scripts.plot --type ratio
 
 ```mermaid
 flowchart LR
-    IN[Input: norm_N (1)\n norm_n_nu (1)\n norm_N_sq (1)]
-    MLP[MLP\ninput_dim=3\nhidden: 64 -> 32 -> 64\nact: ReLU]
-    H1[head_chi_nu\n(out: 1)]
-    H2[head_interaction\n(out: 3 -> eps,kappa,C_beta)]
-    FIX[fixed_chi_pi\n(buffer)]
-    CONCAT[Concatenate -> Params\n(eps,kappa,chi_nu,chi_pi,C_beta)]
-    DEC[IBM2PESDecoder\n(beta_grid -> PES vector)]
+    IN["Input: norm_N (1)\n norm_n_nu (1)\n norm_N_sq (1)"]
+    MLP["MLP\ninput_dim=3\nhidden: 64 -> 32 -> 64\nact: ReLU"]
+    H1["head_chi_nu\n(out: 1)"]
+    H2["head_interaction\n(out: 3 -> eps,kappa,C_beta)"]
+    FIX["fixed_chi_pi\n(buffer)"]
+    CONCAT["Concatenate -> Params\n(eps,kappa,chi_nu,chi_pi,C_beta)"]
+    DEC["IBM2PESDecoder\n(beta_grid -> PES vector)"]
 
     IN --> MLP
     MLP --> H1
