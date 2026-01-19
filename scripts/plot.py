@@ -120,7 +120,7 @@ def main():
     # ==========================================
     n_list = []
     z_list = [] # Zのリストを追加
-    params_history = {"epsilon": [], "kappa": [], "chi_nu": [], "chi_pi": [], "C_beta": []}
+    params_history = {"epsilon": [], "kappa": [], "chi_nu": [], "chi_pi": []}
     pes_data_list = [] # まとめてプロット用
     
     print("Generating PES & Parameter plots...")
@@ -164,7 +164,6 @@ def main():
             params_history["kappa"].append(p[1])
             params_history["chi_pi"].append(p[2])
             params_history["chi_nu"].append(p[3])
-            params_history["C_beta"].append(p[4])
 
     # ==========================================
     # 6. プロット (Zごとにフォルダ分け)

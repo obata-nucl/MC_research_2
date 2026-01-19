@@ -88,11 +88,11 @@ class IBM2Visualizer:
         """
         中性子数Nに対する各パラメータの変化をプロット (Zごとに色分け)
         """
-        fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+        fig, axes = plt.subplots(2, 2, figsize=(12, 8))
         axes = axes.flatten()
         
-        keys = ["epsilon", "kappa", "chi_pi", "chi_nu", "C_beta"]
-        keys_labels = [r"$\epsilon$", r"$\kappa$", r"$\chi_{\pi}$", r"$\chi_{\nu}$", r"$C_{\beta}$"]
+        keys = ["epsilon", "kappa", "chi_pi", "chi_nu"]
+        keys_labels = [r"$\epsilon$", r"$\kappa$", r"$\chi_{\pi}$", r"$\chi_{\nu}$"]
         
         # Zごとの色設定
         unique_z = sorted(list(set(z_list)))
@@ -107,8 +107,8 @@ class IBM2Visualizer:
         param_limits = {
             "epsilon": (0.0, 3.5),
             "kappa": (-1.0, 0.0),
-            "chi_nu": (-1.5, 0.0),
-            "C_beta": (1.0, 6.0)
+            "chi_pi": (-1.5, 0.0),
+            "chi_nu": (-1.5, 0.0)
         }
 
         n_arr = np.array(n_list)
@@ -151,10 +151,6 @@ class IBM2Visualizer:
             # 凡例を表示
             ax.legend(fontsize=10)
         
-        if len(keys) < 6:
-            for j in range(len(keys), 6):
-                axes[j].axis('off')
-            
         plt.tight_layout()
         save_path = self.save_dir / filename
         plt.savefig(save_path)
