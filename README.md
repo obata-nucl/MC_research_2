@@ -176,34 +176,54 @@ python -m scripts.plot --type ratio
 
 このプロジェクトで実装されているニューラルネットワークの構造を図示します。以下は README 内でそのままレンダリング可能な Mermaid 図と簡単な説明です。
 
-- 入力: `[norm_N, norm_n_nu, norm_N_sq]`（3要素）
-- MLP: `input_dim = 3` -> `hidden_sizes`（例：`[64, 32, 64]`）
+- 入力: `[norm_n_pi, norm_n_nu, norm_P]`（3要素）
+- 構造: Y字型ネットワーク (Proton/Neutron Branch)
+    - Proton Branch: `norm_n_pi` -> `MLP` -> `h_pi`
+    - Neutron Branch: `norm_n_nu` -> `MLP` -> `h_nu`
 - 出力ヘッド:
-    - `head_chi_nu` -> χ_ν (1)
-    - `head_interaction` -> ε, κ, C_β (3)
-    - `chi_pi` は `fixed_chi_pi` としてバッファ（固定値）
+    - `head_chi_pi`: `h_pi` -> `chi_pi`
+    - `head_chi_nu`: `h_nu` -> `chi_nu`
+    - `head_hamiltonian`: `[h_pi, h_nu, P]` -> `epsilon`, `kappa`
+    - `C_beta` は固定値として扱われます
 - デコーダ: `IBM2PESDecoder` （パラメータ、n_pi/n_nu, beta_grid から PES を計算）
 
 ```mermaid
 flowchart LR
-    IN["Input: norm_N (1)\n norm_n_pi (1)\n norm_n_nu (1)\n norm_P (1)"]
-    MLP["MLP\n input_dim=3\n hidden: 64 -> 32 -> 64\n act: ReLU"]
-    H1["head_chi_nu\n (out: 1)"]
-    H2["head_interaction\n (out: 3 -> eps,kappa,C_beta)"]
-    FIX["fixed_chi_pi\n (buffer)"]
-    CONCAT["Concatenate -> Params\n (eps,kappa,chi_nu,chi_pi,C_beta)"]
-    DEC["IBM2PESDecoder\n (beta_grid -> PES vector)"]
+    IN_PI["Input: norm_n_pi (1)"]
+    IN_NU["Input: norm_n_nu (1)"]
+    IN_P["Input: norm_P (1)"]
+    
+    MLP_PI["Proton Branch (MLP)\nhidden: 64 -> 32 -> 64"]
+    MLP_NU["Neutron Branch (MLP)\nhidden: 64 -> 32 -> 64"]
+    
+    H_CHI_PI["head_chi_pi\n(out: 1 -> chi_pi)"]
+    H_CHI_NU["head_chi_nu\n(out: 1 -> chi_nu)"]
+    H_HAM["head_hamiltonian\n(out: 2 -> eps, kappa)"]
+    
+    FIX_C["fixed_C_beta\n(buffer)"]
+    
+    CONCAT["Concatenate -> Params\n(eps, kappa, chi_pi, chi_nu, C_beta)"]
+    DEC["IBM2PESDecoder\n(beta_grid -> PES vector)"]
 
-    IN --> MLP
-    MLP --> H1
-    MLP --> H2
-    H1 --> CONCAT
-    H2 --> CONCAT
-    FIX --> CONCAT
+    IN_PI --> MLP_PI
+    IN_NU --> MLP_NU
+    
+    MLP_PI --> H_CHI_PI
+    MLP_NU --> H_CHI_NU
+    
+    MLP_PI --> H_HAM
+    MLP_NU --> H_HAM
+    IN_P --> H_HAM
+    
+    H_CHI_PI --> CONCAT
+    H_CHI_NU --> CONCAT
+    H_HAM --> CONCAT
+    FIX_C --> CONCAT
+    
     CONCAT --> DEC
 ```
 
 図の注記:
-- `norm_N`: N を 126 で割って正規化した値、`norm_n_nu`はボソン数に対する正規化、`norm_N_sq` は N (正規化後) の二乗です。
-- `head_interaction` が $\epsilon, \kappa, C_{\beta}$ を生成し、`head_chi_nu` が $\chi_{\nu}$ を出力します。`chi_pi` はネットワークにより固定値として扱われます。
-- Decoder は生成したパラメータと $\chi_{\pi}, \chi_{\nu}$ (生の値) を用いて PES を β-grid に沿って計算します。
+- `norm_n_pi`, `norm_n_nu`: ボソン数を正規化した値。
+- `norm_P`: Casten factor $P = N_\pi N_\nu / (N_\pi + N_\nu)$ を正規化した値。
+- プロトンと中性子それぞれのブランチで特徴抽出を行い、`chi_pi`, `chi_nu` はそれぞれのブランチから、`epsilon`, `kappa` は両方の特徴と `P` を統合して予測します。
