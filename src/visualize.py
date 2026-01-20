@@ -185,13 +185,15 @@ class IBM2Visualizer:
         plt.close()
         print(f"Saved: {save_path}")
 
-    def plot_spectra(self, pred_df, expt_df, filename="spectra.png"):
+    def plot_spectra(self, pred_df, expt_df, filename="spectra.png", levels=None):
         """
         エネルギー準位の比較プロット (Project 1 style)
         """
         fig, ax = plt.subplots(1, 2, figsize=(12, 6))
         
-        levels = ["2+_1", "4+_1", "6+_1", "0+_2"]
+        if levels is None:
+            levels = ["2+_1", "4+_1", "6+_1", "0+_2"]
+        
         markers = ['o', 's', '^', 'D']
         colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red']
         level_aliases = {
@@ -201,9 +203,14 @@ class IBM2Visualizer:
             "0+_2": ["0+_2", "E0_2"]
         }
         
+        # マーカーと色の対応を固定するために辞書化 (Subset指定に対応)
+        all_levels = ["2+_1", "4+_1", "6+_1", "0+_2"]
+        marker_map = {l: m for l, m in zip(all_levels, markers)}
+        color_map = {l: c for l, c in zip(all_levels, colors)}
+        
         # Theory (Pred)
         ax[0].set_title("Theory (IBM-2)", fontsize=16)
-        for i, level in enumerate(levels):
+        for level in levels:
             col = self._resolve_column(pred_df, level_aliases[level])
             if col is None:
                 continue
@@ -211,11 +218,11 @@ class IBM2Visualizer:
             if not valid.any():
                 continue
             ax[0].plot(pred_df.loc[valid, "N"], pred_df.loc[valid, col], 
-                       marker=markers[i], color=colors[i], label=level)
+                       marker=marker_map[level], color=color_map[level], label=level)
 
         # Expt
         ax[1].set_title("Experiment", fontsize=16)
-        for i, level in enumerate(levels):
+        for level in levels:
             col = self._resolve_column(expt_df, level_aliases[level])
             if col is None:
                 continue
@@ -223,7 +230,7 @@ class IBM2Visualizer:
             if not valid.any():
                 continue
             ax[1].plot(expt_df.loc[valid, "N"], expt_df.loc[valid, col], 
-                       marker=markers[i], color=colors[i], label=level)
+                       marker=marker_map[level], color=color_map[level], label=level)
 
         for a in ax:
             a.set_xlabel("Neutron Number", fontsize=14)

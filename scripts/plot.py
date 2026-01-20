@@ -249,6 +249,10 @@ def main():
             if z_pred_df is not None and not z_pred_df.empty:
                 if args.type in ["spectra", "all"]:
                     z_vis.plot_spectra(z_pred_df, z_expt_df, filename=f"{prefix}spectra.png")
+                    # Specify levels without 0+_2 for optuna_spectra_g
+                    if args.optuna:
+                        z_vis.plot_spectra(z_pred_df, z_expt_df, filename=f"{prefix}spectra_g.png", 
+                                           levels=["2+_1", "4+_1", "6+_1"])
                 
                 if args.type in ["ratio", "all"]:
                     z_vis.plot_ratio(z_pred_df, z_expt_df, filename=f"{prefix}ratio.png")
