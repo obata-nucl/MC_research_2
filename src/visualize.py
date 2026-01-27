@@ -102,6 +102,8 @@ class IBM2Visualizer:
         else:
             colors = plt.cm.viridis(np.linspace(0, 1, len(unique_z)))
             
+        line_styles = ["-", "--", ":"]
+        marker_styles = ["o", "s", "^"]
         element_symbols = {60: "Nd", 62: "Sm", 64: "Gd"}
 
         param_limits = {
@@ -138,7 +140,12 @@ class IBM2Visualizer:
                 
                 symbol = element_symbols.get(z, f"Z={z}")
                 color = colors[j % len(colors)]
-                ax.plot(sorted_n, sorted_vals, "o-", color=color, label=f"{symbol}")
+                ls = line_styles[j % len(line_styles)]
+                mk = marker_styles[j % len(marker_styles)]
+                
+                # Jitterなしでプロット。透明度を調整し、マーカーと線種で区別。
+                ax.plot(sorted_n, sorted_vals, marker=mk, linestyle=ls, 
+                        color=color, label=f"{symbol}", alpha=0.5, markersize=6)
 
             ax.set_xlabel("Neutron Number N")
             ax.set_ylabel(keys_labels[i])
@@ -157,30 +164,30 @@ class IBM2Visualizer:
         plt.close()
         print(f"Saved: {save_path}")
 
-    def plot_loss_history(self, train_loss, val_loss, filename="loss.png"):
+    def plot_loss_history(self, train_loss, val_loss, filename="loss.png", lr=None):
         """
         学習曲線のプロット
         """
         epochs = range(1, len(train_loss) + 1)
         
-        fig, ax = plt.subplots(figsize=(8, 6))
-        ax.plot(epochs, train_loss, label='Train Loss', linewidth=2)
-        ax.plot(epochs, val_loss, label='Val Loss', linewidth=2)
+        fig, ax1 = plt.subplots(figsize=(9, 5))
+        ax1.set_title("Learning Curve", fontsize=18)
+        ax1.set_xlabel("Epochs", fontsize=14)
+        ax1.set_ylabel("MAE", fontsize=14)
+        ax1.grid(True, alpha=0.3, linestyle=":")
         
-        ax.set_xlabel("Epochs", fontsize=14)
-        ax.set_ylabel("Weighted MSE Loss", fontsize=14)
-        ax.set_title("Learning Curve", fontsize=16)
-        ax.set_yscale("log")
-        ax.legend(fontsize=12)
+        ax1.plot(epochs, train_loss, label='train_MAE', color="#1f77b4", linewidth=2)
+        ax1.plot(epochs, val_loss, label='val_MAE', color="#ff7f0e", linewidth=2)
+        ax1.legend(loc="best")
         
-        # グリッドと目盛りを細かく設定
-        ax.grid(True, which="major", linestyle="-", alpha=0.5)
-        ax.grid(True, which="minor", linestyle=":", alpha=0.3)
-        ax.minorticks_on()
-        ax.tick_params(axis='both', which='major', labelsize=12)
+        if lr is not None:
+            ax2 = ax1.twinx()
+            ax2.set_ylabel("Learning Rate", fontsize=14)
+            ax2.plot(epochs, lr, color="#2ca02c", alpha=0.35, label="lr")
+            ax2.set_yscale("log")
         
-        save_path = self.save_dir / filename
         plt.tight_layout()
+        save_path = self.save_dir / filename
         plt.savefig(save_path)
         plt.close()
         print(f"Saved: {save_path}")

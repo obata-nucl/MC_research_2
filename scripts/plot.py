@@ -86,6 +86,7 @@ def main():
             vis.plot_loss_history(
                 train_loss=df["train_loss"],
                 val_loss=df["val_loss"],
+                lr=df.get("lr"),
                 filename=f"{prefix}learning_curve.png"
             )
         else:
@@ -190,6 +191,19 @@ def main():
         unique_zs = sorted(pred_df_all["Z"].unique())
 
     print(f"Generating plots for Z: {unique_zs}")
+
+    # ==========================================
+    # 7. 全核種まとめてパラメータ推移プロット
+    # ==========================================
+    if args.type in ["params", "all"] and len(n_list) > 0:
+        print(f"--- Plotting combined parameters evolution for {len(set(z_list))} isotopes ---")
+        # 直接 plot_dir を指定して保存を確実にする
+        vis.plot_parameters_evolution(
+            n_list, z_list, params_history, 
+            filename=f"{prefix}params_trend_all.png"
+        )
+    else:
+        print("Warning: No parameter data collected. Skipping combined plot.")
 
     for z in unique_zs:
         print(f"--- Plotting for Z={z} ---")
