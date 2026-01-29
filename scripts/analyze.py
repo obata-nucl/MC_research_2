@@ -134,8 +134,8 @@ def main():
         if (n_pi + n_nu) == 0:
             P = 0.0
         else:
-            P = (n_pi * n_nu) / (n_pi + n_nu)
-        norm_P = P / 10.0
+            P = 2.0 * (n_pi * n_nu) / (n_pi + n_nu)
+        norm_P = P / 20.0
         
         inp = torch.tensor([[norm_n_pi, norm_n_nu, norm_P]], device=device)
         

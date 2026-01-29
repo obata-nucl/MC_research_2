@@ -131,14 +131,15 @@ class IBM2Dataset(Dataset):
         # 2. 陽子ボソン数 n_pi (最大数より少し大きい20で正規化)
         norm_n_pi = raw_n_pi / 20.0
         
-        # 3. Casten factor P = (n_pi * n_nu) / (n_pi + n_nu)
+        # 3. Casten factor P = (N_p * N_n) / (N_p + N_n)
+        # N_p, N_n は価核子数 (ボソン数の2倍)
         if (raw_n_pi + raw_n_nu) == 0:
             P = 0.0
         else:
-            P = (raw_n_pi * raw_n_nu) / (raw_n_pi + raw_n_nu)
+            P = 2.0 * (raw_n_pi * raw_n_nu) / (raw_n_pi + raw_n_nu)
         
-        # Pの正規化 (最大値はおよそ10程度なので10で割る)
-        norm_P = P / 10.0
+        # Pの正規化 (Pの最大値はおよそ16程度なので20で割る)
+        norm_P = P / 20.0
         
         # 入力データ: [n_pi, n_nu, P]
         inputs = torch.tensor([norm_n_pi, norm_n_nu, norm_P], dtype=torch.float32)
