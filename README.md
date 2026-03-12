@@ -1,4 +1,4 @@
-# MC_research_2 (project2)
+# mc_research_model1
 
 ## 概要
 このプロジェクトは、ニューラルネットワークを用いて原子核物理学における **IBM2 (Interacting boson model 2)** のハミルトニアンのパラメータ ($\epsilon, \kappa, \chi_\nu, \chi_pi$) と PES (Potential energy surface) のスケール因子 ($C_\beta$)を推定するための研究用コードです。
@@ -7,7 +7,7 @@
 ## ディレクトリ構造
 
 ```
-project2/
+mc_research_model1/
 ├── configs/            # 各種設定
 ├── data/               # データセット
 │     ├ raw/
