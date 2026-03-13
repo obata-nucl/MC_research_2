@@ -1,25 +1,123 @@
 import argparse
+from pathlib import Path
+import sys
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 import yaml
 
+# Allow direct execution: `python scripts/plot.py ...`
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.dataset import IBM2Dataset
 from src.model import IBM2FlexibleNet, IBM2PESDecoder
 from src.utils import load_config, set_seed
 from src.visualize import IBM2Visualizer
 
+
+def _resolve_experiment_dir(dir_arg, output_dir):
+    raw = Path(dir_arg)
+    candidates = [
+        raw,
+        output_dir.parent / raw,
+        Path.cwd() / raw,
+    ]
+    for cand in candidates:
+        if cand.exists() and cand.is_dir():
+            return cand.resolve()
+    return None
+
+
+def _load_allowed_n_values(analysis_file):
+    if not analysis_file.exists():
+        return None
+    try:
+        df = pd.read_csv(analysis_file)
+    except Exception as exc:
+        print(f"Warning: Failed to read {analysis_file}: {exc}")
+        return None
+
+    if "N" not in df.columns:
+        print(f"Warning: Column 'N' missing in {analysis_file}. Cannot filter nuclei.")
+        return None
+    return set(df["N"].astype(int).tolist())
+
+
+def _build_model_label(model_config, exp_dir):
+    c_beta = model_config.get("fixed_C_beta")
+    if c_beta is None:
+        return f"IBM-2 ({exp_dir.name})"
+    return f"IBM-2 ($C_{{\\beta}}={c_beta:.1f}$)"
+
+
+def _spectra_panel_labels(c_beta):
+    if c_beta is None:
+        left = "(a) IBM-2"
+    else:
+        left = rf"(a) IBM-2 ($C_{{\beta}}={float(c_beta):.1f}$)"
+    right = "(b) Expt."
+    return left, right
+
+
+def _z_panel_label(z):
+    mapping = {
+        60: "(a) Nd",
+        62: "(b) Sm",
+        64: "(c) Gd",
+    }
+    return mapping.get(z)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--optuna", action="store_true", help="Visualize Optuna best result")
     # type引数で描画対象を選べるようにする (デフォルトは全部)
-    parser.add_argument("--type", type=str, default="all", choices=["pes", "params", "loss", "spectra", "ratio", "all"])
+    parser.add_argument("--type", type=str, default="all", choices=["pec", "pes", "params", "loss", "spectra", "ratio", "all"])
+    parser.add_argument(
+        "--element",
+        type=str,
+        default="all",
+        choices=["all", "Nd", "Sm", "Gd"],
+        help="Plot only selected element (Nd=60, Sm=62, Gd=64)."
+    )
+    parser.add_argument(
+        "--z",
+        type=int,
+        default=None,
+        help="Plot only selected proton number Z (overrides --element). Example: --z 62 for Sm."
+    )
+    parser.add_argument(
+        "--compare_dirs",
+        nargs="+",
+        default=None,
+        help="Compare multiple experiment dirs in one PES figure. Example: --compare_dirs 4 25"
+    )
+    parser.add_argument(
+        "--compare_filename",
+        type=str,
+        default="PES_compare_cbeta.pdf",
+        help="Output filename in compare mode."
+    )
     args = parser.parse_args()
+
+    if args.type == "pec":
+        args.type = "pes"
+
+    element_to_z = {"Nd": 60, "Sm": 62, "Gd": 64}
+    selected_z = args.z if args.z is not None else element_to_z.get(args.element)
 
     # 1. 設定ロード
     cfg = load_config()
     device = torch.device(cfg.get("device", "cpu"))
+
+    # Smなど特定元素のみ指定された場合は、Dataset読み込み範囲をZ固定にする
+    if selected_z is not None:
+        cfg["nuclei"]["z_min"] = selected_z
+        cfg["nuclei"]["z_max"] = selected_z
+        cfg["nuclei"]["z_step"] = 1
+        print(f"Dataset Z-range fixed to Z={selected_z}")
     
     # ディレクトリ設定
     output_dir = cfg["dirs"]["output_dir"]
@@ -31,6 +129,114 @@ def main():
 
     mode_name = "optuna" if args.optuna else "normal"
     prefix = f"{mode_name}_"
+
+    if args.compare_dirs:
+        if args.type not in ["pes", "all"]:
+            print("Warning: compare mode supports only --type pes/pec/all.")
+            return
+
+        print(f"Mode: Comparing C_beta models from dirs: {args.compare_dirs}")
+
+        dataset = IBM2Dataset(cfg)
+        decoder = IBM2PESDecoder(beta_f_grid=dataset.beta_grid).to(device)
+
+        compare_records = {}
+        model_labels = []
+
+        for dir_arg in args.compare_dirs:
+            exp_dir = _resolve_experiment_dir(dir_arg, output_dir)
+            if exp_dir is None:
+                print(f"Warning: compare dir not found: {dir_arg}")
+                continue
+
+            model_dir_cmp = exp_dir / "models"
+            model_path = model_dir_cmp / ("optuna_best_model.pth" if args.optuna else "best_model.pth")
+            config_path = model_dir_cmp / ("optuna_best_config.yaml" if args.optuna else "best_config.yaml")
+            analysis_file = exp_dir / f"analysis_{mode_name}.csv"
+
+            if not model_path.exists():
+                print(f"Warning: model file not found: {model_path}")
+                continue
+
+            if config_path.exists():
+                with open(config_path, "r", encoding="utf-8") as f:
+                    model_config = yaml.safe_load(f)
+            else:
+                print(f"Warning: config file not found: {config_path}. Fallback to default config.")
+                model_config = cfg["default"]["nn"].copy()
+                model_config["fixed_C_beta"] = cfg["nuclei"].get("fixed_C_beta")
+
+            label = _build_model_label(model_config, exp_dir)
+            if label in model_labels:
+                label = f"{label}#{len(model_labels)}"
+            model_labels.append(label)
+
+            allowed_n_values_cmp = _load_allowed_n_values(analysis_file)
+            if allowed_n_values_cmp is not None:
+                print(f"{exp_dir.name}: filter by {len(allowed_n_values_cmp)} nuclei from {analysis_file.name}")
+
+            model = IBM2FlexibleNet(model_config).to(device)
+            model.load_state_dict(torch.load(model_path, map_location=device))
+            model.eval()
+
+            with torch.no_grad():
+                for i in range(len(dataset)):
+                    inputs, target, n_pi, n_nu = dataset[i]
+                    z_val = dataset.data[i]["Z"]
+                    n_val = dataset.data[i]["N"]
+
+                    if selected_z is not None and z_val != selected_z:
+                        continue
+                    if allowed_n_values_cmp and n_val not in allowed_n_values_cmp:
+                        continue
+
+                    inputs = inputs.unsqueeze(0).to(device)
+                    n_pi = n_pi.unsqueeze(0).to(device)
+                    n_nu = n_nu.unsqueeze(0).to(device)
+
+                    params = model(inputs)
+                    preds = decoder(params, n_pi, n_nu)
+
+                    key = (z_val, n_val)
+                    if key not in compare_records:
+                        compare_records[key] = {
+                            "Z": z_val,
+                            "N": n_val,
+                            "target": target.cpu().numpy(),
+                            "preds": {}
+                        }
+
+                    compare_records[key]["preds"][label] = preds[0].cpu().numpy()
+
+        if len(compare_records) == 0:
+            print("Error: No comparison data collected. Check --compare_dirs and model files.")
+            return
+
+        compare_plot_root = plot_dir / "compare_cbeta"
+        unique_zs_cmp = sorted({v["Z"] for v in compare_records.values()})
+        print(f"Generating comparison PES for Z: {unique_zs_cmp}")
+
+        for z in unique_zs_cmp:
+            z_plot_dir = compare_plot_root / str(z)
+            z_vis = IBM2Visualizer(save_dir=z_plot_dir)
+
+            z_data = [v for v in compare_records.values() if v["Z"] == z]
+            labels_for_z = [
+                label for label in model_labels
+                if any(label in d.get("preds", {}) for d in z_data)
+            ]
+            if len(labels_for_z) == 0:
+                continue
+
+            z_vis.plot_all_pes_compare_models(
+                dataset.beta_grid,
+                z_data,
+                model_labels=labels_for_z,
+                filename=f"{prefix}{args.compare_filename}"
+            )
+
+        print("All comparison PES plots generated.")
+        return
 
     # ==========================================
     # 2. ファイルパスの決定 (通常 vs Optuna)
@@ -87,7 +293,7 @@ def main():
                 train_loss=df["train_loss"],
                 val_loss=df["val_loss"],
                 lr=df.get("lr"),
-                filename=f"{prefix}learning_curve.png"
+                filename=f"{prefix}learning_curve.pdf"
             )
         else:
             print(f"Warning: History file not found at {history_path}")
@@ -143,6 +349,9 @@ def main():
             n_val = dataset.data[i]["N"]
             z_val = dataset.data[i]["Z"]
 
+            if selected_z is not None and z_val != selected_z:
+                continue
+
             if allowed_n_values and n_val not in allowed_n_values:
                 continue
             
@@ -190,6 +399,11 @@ def main():
     if not unique_zs and pred_df_all is not None and "Z" in pred_df_all.columns:
         unique_zs = sorted(pred_df_all["Z"].unique())
 
+    if selected_z is not None:
+        unique_zs = [z for z in unique_zs if z == selected_z]
+        if len(unique_zs) == 0:
+            print(f"Warning: No data found for selected Z={selected_z}.")
+
     print(f"Generating plots for Z: {unique_zs}")
 
     # ==========================================
@@ -200,7 +414,7 @@ def main():
         # 直接 plot_dir を指定して保存を確実にする
         vis.plot_parameters_evolution(
             n_list, z_list, params_history, 
-            filename=f"{prefix}params_trend_all.png"
+            filename=f"{prefix}params_trend_all.pdf"
         )
     else:
         print("Warning: No parameter data collected. Skipping combined plot.")
@@ -216,7 +430,7 @@ def main():
             z_vis.plot_all_pes(
                 dataset.beta_grid, 
                 z_pes_data, 
-                filename=f"{prefix}PES_all.png"
+                filename=f"{prefix}PES_all.pdf"
             )
 
         # 2. Params
@@ -228,7 +442,7 @@ def main():
             
             z_vis.plot_parameters_evolution(
                 z_n_list, z_z_list_sub, z_params, 
-                filename=f"{prefix}params_trend.png"
+                filename=f"{prefix}params_trend.pdf"
             )
 
         # 3. Spectra & Ratio
@@ -262,14 +476,30 @@ def main():
 
             if z_pred_df is not None and not z_pred_df.empty:
                 if args.type in ["spectra", "all"]:
-                    z_vis.plot_spectra(z_pred_df, z_expt_df, filename=f"{prefix}spectra.png")
+                    panel_labels = _spectra_panel_labels(model_config.get("fixed_C_beta"))
+                    z_vis.plot_spectra(
+                        z_pred_df,
+                        z_expt_df,
+                        filename=f"{prefix}spectra.pdf",
+                        panel_labels=panel_labels,
+                    )
                     # Specify levels without 0+_2 for optuna_spectra_g
                     if args.optuna:
-                        z_vis.plot_spectra(z_pred_df, z_expt_df, filename=f"{prefix}spectra_g.png", 
-                                           levels=["2+_1", "4+_1", "6+_1"])
+                        z_vis.plot_spectra(
+                            z_pred_df,
+                            z_expt_df,
+                            filename=f"{prefix}spectra_g.pdf",
+                            levels=["2+_1", "4+_1", "6+_1"],
+                            panel_labels=panel_labels,
+                        )
                 
                 if args.type in ["ratio", "all"]:
-                    z_vis.plot_ratio(z_pred_df, z_expt_df, filename=f"{prefix}ratio.png")
+                    z_vis.plot_ratio(
+                        z_pred_df,
+                        z_expt_df,
+                        filename=f"{prefix}ratio.pdf",
+                        panel_label=_z_panel_label(z),
+                    )
 
     print("All plots generated.")
 

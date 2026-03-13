@@ -10,7 +10,7 @@ element_mapping:
   62: "Sm"
   64: "Gd"
 
-fixed_C_beta: 3.0
+fixed_C_beta: 4.0
 
 beta_min: -0.40
 beta_max: 0.50
